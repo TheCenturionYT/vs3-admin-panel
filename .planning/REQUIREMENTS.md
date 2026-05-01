@@ -121,18 +121,61 @@
 
 ## Traceability
 
-*(To be filled by roadmapper)*
-
-| REQ-ID | Phase |
-|--------|-------|
-| AUTH-01 through AUTH-06 | — |
-| DATA-01 through DATA-07 | — |
-| UPKEEP-01 through UPKEEP-11 | — |
-| INSTAB-01 through INSTAB-06 | — |
-| WAR-01 through WAR-07 | — |
-| DIPLO-01 through DIPLO-03 | — |
-| PORTAL-01 through PORTAL-04 | — |
-| LOG-01 through LOG-04 | — |
-| METRICS-01 through METRICS-03 | — |
-| UX-01 through UX-02 | — |
-| DEPLOY-01 through DEPLOY-03 | — |
+| REQ-ID | Phase | Status |
+|--------|-------|--------|
+| AUTH-01 | Phase 1 — Foundation | Pending |
+| AUTH-02 | Phase 1 — Foundation | Pending |
+| AUTH-03 | Phase 1 — Foundation | Pending |
+| AUTH-04 | Phase 1 — Foundation | Pending |
+| AUTH-05 | Phase 1 — Foundation | Pending |
+| AUTH-06 | Phase 1 — Foundation | Pending |
+| DEPLOY-01 | Phase 1 — Foundation | Pending |
+| DEPLOY-02 | Phase 1 — Foundation | Pending |
+| DEPLOY-03 | Phase 1 — Foundation | Pending |
+| UX-01 | Phase 1 — Foundation | Pending |
+| UX-02 | Phase 1 — Foundation | Pending |
+| DATA-01 | Phase 2 — Core Data & Wars | Pending |
+| DATA-02 | Phase 2 — Core Data & Wars | Pending |
+| DATA-03 | Phase 2 — Core Data & Wars | Pending |
+| DATA-04 | Phase 2 — Core Data & Wars | Pending |
+| DATA-05 | Phase 2 — Core Data & Wars | Pending |
+| DATA-06 | Phase 2 — Core Data & Wars | Pending |
+| DATA-07 | Phase 2 — Core Data & Wars | Pending |
+| WAR-01 | Phase 2 — Core Data & Wars | Pending |
+| WAR-02 | Phase 2 — Core Data & Wars | Pending |
+| WAR-03 | Phase 2 — Core Data & Wars | Pending |
+| WAR-04 | Phase 2 — Core Data & Wars | Pending |
+| WAR-05 | Phase 2 — Core Data & Wars | Pending |
+| WAR-06 | Phase 2 — Core Data & Wars | Pending |
+| WAR-07 | Phase 2 — Core Data & Wars | Pending |
+| DIPLO-01 | Phase 2 — Core Data & Wars | Pending |
+| DIPLO-02 | Phase 2 — Core Data & Wars | Pending |
+| DIPLO-03 | Phase 2 — Core Data & Wars | Pending |
+| LOG-01 | Phase 2 — Core Data & Wars | Pending |
+| LOG-02 | Phase 2 — Core Data & Wars | Pending |
+| LOG-03 | Phase 2 — Core Data & Wars | Pending |
+| LOG-04 | Phase 2 — Core Data & Wars | Pending |
+| METRICS-03 | Phase 2 — Core Data & Wars | Pending |
+| UPKEEP-01 | Phase 3 — Upkeep Engine & Automation | Pending |
+| UPKEEP-02 | Phase 3 — Upkeep Engine & Automation | Pending |
+| UPKEEP-03 | Phase 3 — Upkeep Engine & Automation | Pending |
+| UPKEEP-04 | Phase 3 — Upkeep Engine & Automation | Pending |
+| UPKEEP-05 | Phase 3 — Upkeep Engine & Automation | Pending |
+| UPKEEP-06 | Phase 3 — Upkeep Engine & Automation | Pending |
+| UPKEEP-07 | Phase 3 — Upkeep Engine & Automation | Pending |
+| UPKEEP-08 | Phase 3 — Upkeep Engine & Automation | Pending |
+| UPKEEP-09 | Phase 3 — Upkeep Engine & Automation | Pending |
+| UPKEEP-10 | Phase 3 — Upkeep Engine & Automation | Pending |
+| UPKEEP-11 | Phase 3 — Upkeep Engine & Automation | Pending |
+| INSTAB-01 | Phase 3 — Upkeep Engine & Automation | Pending |
+| INSTAB-02 | Phase 3 — Upkeep Engine & Automation | Pending |
+| INSTAB-03 | Phase 3 — Upkeep Engine & Automation | Pending |
+| INSTAB-04 | Phase 3 — Upkeep Engine & Automation | Pending |
+| INSTAB-05 | Phase 3 — Upkeep Engine & Automation | Pending |
+| INSTAB-06 | Phase 3 — Upkeep Engine & Automation | Pending |
+| METRICS-01 | Phase 3 — Upkeep Engine & Automation | Pending |
+| METRICS-02 | Phase 3 — Upkeep Engine & Automation | Pending |
+| PORTAL-01 | Phase 4 — Player Portal | Pending |
+| PORTAL-02 | Phase 4 — Player Portal | Pending |
+| PORTAL-03 | Phase 4 — Player Portal | Pending |
+| PORTAL-04 | Phase 4 — Player Portal | Pending |
