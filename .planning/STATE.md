@@ -1,7 +1,7 @@
 # STATE — VS3 Admin Panel v2.0.0
 
 **Last updated:** 2026-05-01
-**Session type:** Phase 1 execution — 01-06 complete
+**Session type:** Phase 1 complete / Phase 2 ready
 
 ---
 
@@ -11,7 +11,7 @@
 
 **Stack:** PocketBase 0.22.x (backend/BaaS) + SvelteKit 2 / Svelte 5 (frontend) + shadcn-svelte (UI) + Chart.js 4 (charts). Deployment via Railway (primary) or Docker Compose (VPS path).
 
-**Current focus:** Phase 1 — Foundation
+**Current focus:** Phase 2 — Core Data & Wars
 
 ---
 
@@ -19,9 +19,9 @@
 
 | Field | Value |
 |-------|-------|
-| Phase | 1 — Foundation |
-| Plan | 01-06 complete (6 of 6) |
-| Status | Executing |
+| Phase | 2 — Core Data & Wars |
+| Plan | None started |
+| Status | Ready to plan |
 | Blocking issue | None |
 
 **Progress:**
@@ -60,17 +60,22 @@ Overall: 1 of 4 phases complete (Phase 1 done — all 6 plans complete)
 - **Scheduler failure must be visible** — `job_run_log` table + "Last Run: X ago" dashboard widget + 8-day alert are non-negotiable (Pitfall C3).
 - **Railway is the primary deployment path** — Docker Compose is secondary. PocketBase Volume at `/pb_data` must be attached before first deploy to prevent data loss on restart. (01-06)
 
-### Open Questions (pre-Phase 1)
+### Open Questions (carry forward)
 
 1. **Scheduler implementation path** — Cron container in Docker Compose vs. external cron (Railway cron job / system cron on VPS) hitting PocketBase API webhook. Decide before Phase 3 scope is written.
-2. **Svelte 5 runes + shadcn-svelte compatibility** — verify before scaffold. If shadcn-svelte targets Svelte 4, use Svelte 4 syntax.
-3. **Railway vs Docker Compose primary path** — Railway recommended for non-developer; Docker Compose for portability. One must be the primary for the deployment guide.
-4. **PvE faction + war modifier edge case** — war modifier applies only to PvP factions. Verify scope in both handbook and v1.2.1 before porting formula.
+2. **PvE faction + war modifier edge case** — war modifier applies only to PvP factions. Verify scope in both handbook and v1.2.1 before porting formula.
+3. **T4 upgrade cost** — Handbook §IX says 500 SP; v1 code does not track this. Clarify with user before Phase 3 upgrade tracking.
+
+### Resolved Questions
+
+- ~~Svelte 5 runes + shadcn-svelte compatibility~~ — shadcn-svelte 1.2.7 is Svelte 5 native (Tailwind v4, `@theme inline`). Resolved in 01-01.
+- ~~Railway vs Docker Compose primary path~~ — Railway is primary, Docker Compose is secondary. Resolved in 01-06.
+- ~~Head Admin at route AND rule level~~ — verified: collection rules + SvelteKit route guards both enforced. Verified in Phase 1.
 
 ### Todos
 
-- [ ] Resolve open questions 1–4 before Phase 1 planning begins
 - [ ] Read VS3_Panel_1_2_1.html for `calcUp()`, `checkCaps()`, `procDeadlines()`, `INSTAB_EVENTS` table before Phase 3 planning
+- [ ] Resolve open question 1 (scheduler path) before Phase 3 scope is written
 
 ### Blockers
 
@@ -80,7 +85,7 @@ None currently.
 
 ## Session Continuity
 
-**To resume:** Run `/gsd-execute-phase 2` to begin Phase 2 — Core Data & Wars.
+**To resume:** Run `/gsd-plan-phase 2` to plan Phase 2 — Core Data & Wars, then `/gsd-execute-phase 2`.
 **Files:** All planning artifacts live in `C:\Users\Kramer\Desktop\VS3\.planning\`.
 **Source references:** `VS3_Panel_1_2_1.html` (v1 logic), `VS3_Rules_Node_Handbook_v1.3.0.html` (game rules).
-**Last completed:** 01-06 — deployment infrastructure (Dockerfiles, docker-compose, railway.toml, DEPLOYMENT.md) (2026-05-01)
+**Last completed:** Phase 1 — Foundation (6/6 plans, 2026-05-01). Gap fixes: root redirect + .env.example.

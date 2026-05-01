@@ -4,12 +4,13 @@
 **Granularity:** Coarse
 **Coverage:** 56/56 requirements mapped
 **Last updated:** 2026-05-01
+**Phase 1 completed:** 2026-05-01
 
 ---
 
 ## Phases
 
-- [ ] **Phase 1: Foundation** — PocketBase schema, auth system, staff login, role enforcement, and deployment scaffold
+- [x] **Phase 1: Foundation** — PocketBase schema, auth system, staff login, role enforcement, and deployment scaffold ✓ 2026-05-01
 - [ ] **Phase 2: Core Data & Wars** — Faction/Node/War/Diplomacy CRUD, ownership timeline, logs, and dashboard baseline
 - [ ] **Phase 3: Upkeep Engine & Automation** — SP submissions, cap enforcement, deadline processor, instability system, and metrics
 - [ ] **Phase 4: Player Portal** — Faction-scoped read-only portal with war/alliance board
@@ -30,16 +31,16 @@
 **Plans**: 6 plans in 3 waves
 
 **Wave 1**
-- [ ] 01-01-PLAN.md — Project scaffold (SvelteKit, dependencies, adapter-node, VS3 palette)
-- [ ] 01-02-PLAN.md — PocketBase schema documentation and pb_hooks scheduler placeholder
+- [x] 01-01-PLAN.md — Project scaffold (SvelteKit, dependencies, adapter-node, VS3 palette)
+- [x] 01-02-PLAN.md — PocketBase schema documentation and pb_hooks scheduler placeholder
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 01-03-PLAN.md — Auth foundation (hooks.server.ts, login, logout, route guards)
-- [ ] 01-04-PLAN.md — App shell (sidebar, topbar, stub pages for Dashboard and Server Log)
+- [x] 01-03-PLAN.md — Auth foundation (hooks.server.ts, login, logout, route guards)
+- [x] 01-04-PLAN.md — App shell (sidebar, topbar, stub pages for Dashboard and Server Log)
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 01-05-PLAN.md — Staff Management page (account tables, Add/Edit modal, Deactivate dialog)
-- [ ] 01-06-PLAN.md — Deployment infrastructure (Dockerfiles, docker-compose.yml, DEPLOYMENT.md)
+- [x] 01-05-PLAN.md — Staff Management page (account tables, Add/Edit modal, Deactivate dialog)
+- [x] 01-06-PLAN.md — Deployment infrastructure (Dockerfiles, docker-compose.yml, DEPLOYMENT.md)
 
 **Cross-cutting constraints:** Head Admin enforced at route AND collection rule level; shadcn init runs before VS3 palette is written to app.css; prerender=false on all authenticated routes
 **UI hint**: yes
@@ -84,7 +85,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/6 | Planned | - |
+| 1. Foundation | 6/6 | Complete | 2026-05-01 |
 | 2. Core Data & Wars | 0/? | Not started | - |
 | 3. Upkeep Engine & Automation | 0/? | Not started | - |
 | 4. Player Portal | 0/? | Not started | - |
