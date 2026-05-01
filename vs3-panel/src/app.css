@@ -1,0 +1,99 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ============================================================
+   VS3 Admin Panel — Medieval Gold Palette
+   Single source of truth for all colors across all phases.
+   Never hardcode hex values in component files — use CSS vars.
+   ============================================================ */
+:root {
+  /* Backgrounds */
+  --background:           #1a1410;   /* near-black dark brown — page bg */
+  --card:                 #231d14;   /* slightly lighter — cards/sidebar/topbar */
+  --popover:              #231d14;
+  --muted:                #2c2518;   /* hover states, inputs, tertiary bg */
+  --input:                #2c2518;
+
+  /* Text */
+  --foreground:           #d4c5a0;   /* parchment off-white — body text */
+  --card-foreground:      #d4c5a0;
+  --popover-foreground:   #d4c5a0;
+  --muted-foreground:     #8b7d65;   /* secondary text, labels, timestamps */
+
+  /* Brand */
+  --primary:              #c4a45a;   /* medieval gold accent */
+  --primary-foreground:   #1a1410;   /* dark text on gold backgrounds */
+  --secondary:            #2c2518;
+  --secondary-foreground: #d4c5a0;
+  --accent:               #d4b46a;   /* gold hover state */
+  --accent-foreground:    #1a1410;
+
+  /* Structural */
+  --border:               #3d3426;   /* subtle dark gold border */
+  --ring:                 #c4a45a;   /* focus ring = gold */
+
+  /* Semantic */
+  --destructive:          #8b2b2b;   /* muted red for destructive actions */
+  --destructive-foreground: #d4c5a0;
+  --success:              #3d6b3d;   /* muted green for positive states */
+
+  /* Shape */
+  --radius: 0.375rem;
+}
+
+/* Map CSS custom properties to Tailwind v4 color utilities */
+@theme inline {
+  --color-background:             var(--background);
+  --color-foreground:             var(--foreground);
+  --color-card:                   var(--card);
+  --color-card-foreground:        var(--card-foreground);
+  --color-popover:                var(--popover);
+  --color-popover-foreground:     var(--popover-foreground);
+  --color-muted:                  var(--muted);
+  --color-muted-foreground:       var(--muted-foreground);
+  --color-primary:                var(--primary);
+  --color-primary-foreground:     var(--primary-foreground);
+  --color-secondary:              var(--secondary);
+  --color-secondary-foreground:   var(--secondary-foreground);
+  --color-accent:                 var(--accent);
+  --color-accent-foreground:      var(--accent-foreground);
+  --color-border:                 var(--border);
+  --color-input:                  var(--input);
+  --color-ring:                   var(--ring);
+  --color-destructive:            var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success:                var(--success);
+
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    /* App always runs in dark mode — no light mode, no theme toggle */
+  }
+
+  /* Custom scrollbar — 4px, dark gold themed */
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #231d14;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #2c2518;
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #3d3426;
+  }
+}
