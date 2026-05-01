@@ -27,14 +27,21 @@
   2. A Head Admin can perform a destructive action (e.g., delete a record) that a Staff account cannot — enforced at the PocketBase collection rule level, not just the UI
   3. A faction member account can be created and logged in, but attempting to query another faction's data via a direct API call returns an error or empty result
   4. A non-developer can follow the written deployment guide and have the application running on a fresh server with no prior coding experience
-**Plans**: 6 plans
-Plans:
+**Plans**: 6 plans in 3 waves
+
+**Wave 1**
 - [ ] 01-01-PLAN.md — Project scaffold (SvelteKit, dependencies, adapter-node, VS3 palette)
 - [ ] 01-02-PLAN.md — PocketBase schema documentation and pb_hooks scheduler placeholder
+
+**Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 01-03-PLAN.md — Auth foundation (hooks.server.ts, login, logout, route guards)
 - [ ] 01-04-PLAN.md — App shell (sidebar, topbar, stub pages for Dashboard and Server Log)
+
+**Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 01-05-PLAN.md — Staff Management page (account tables, Add/Edit modal, Deactivate dialog)
 - [ ] 01-06-PLAN.md — Deployment infrastructure (Dockerfiles, docker-compose.yml, DEPLOYMENT.md)
+
+**Cross-cutting constraints:** Head Admin enforced at route AND collection rule level; shadcn init runs before VS3 palette is written to app.css; prerender=false on all authenticated routes
 **UI hint**: yes
 
 ### Phase 2: Core Data & Wars
