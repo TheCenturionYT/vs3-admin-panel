@@ -1,7 +1,7 @@
 # STATE — VS3 Admin Panel v2.0.0
 
 **Last updated:** 2026-05-01
-**Session type:** Phase 1 execution
+**Session type:** Phase 1 execution — 01-06 complete
 
 ---
 
@@ -20,19 +20,19 @@
 | Field | Value |
 |-------|-------|
 | Phase | 1 — Foundation |
-| Plan | 01-02 complete (2 of 6) |
+| Plan | 01-06 complete (6 of 6) |
 | Status | Executing |
 | Blocking issue | None |
 
 **Progress:**
 ```
-[Phase 1: Foundation        ] [.] Executing — 2/6 plans complete
+[Phase 1: Foundation        ] [x] Complete — 6/6 plans complete
 [Phase 2: Core Data & Wars  ] [ ] Not started
 [Phase 3: Upkeep Engine     ] [ ] Not started
 [Phase 4: Player Portal     ] [ ] Not started
 ```
 
-Overall: 0 of 4 phases complete (Phase 1 in progress — 01-01 and 01-02 done)
+Overall: 1 of 4 phases complete (Phase 1 done — all 6 plans complete)
 
 ---
 
@@ -43,7 +43,7 @@ Overall: 0 of 4 phases complete (Phase 1 in progress — 01-01 and 01-02 done)
 | Requirements mapped | 56/56 |
 | Phases defined | 4 |
 | Plans created | 6 (Phase 1) |
-| Plans complete | 2 (01-01, 01-02) |
+| Plans complete | 6 (01-01 through 01-06) — Phase 1 done |
 
 ---
 
@@ -58,6 +58,7 @@ Overall: 0 of 4 phases complete (Phase 1 in progress — 01-01 and 01-02 done)
 - **Business logic ported from v1.2.1 JS, not handbook prose** — handbook has ambiguities already resolved in v1.2.1. Port `calcUp()`, `checkCaps()`, `procDeadlines()`, `INSTAB_CHANCE[]` directly (Pitfall C4).
 - **Head Admin enforcement at route AND rule level** — both PocketBase collection rules and UI must enforce it; neither alone is sufficient (Pitfall C5).
 - **Scheduler failure must be visible** — `job_run_log` table + "Last Run: X ago" dashboard widget + 8-day alert are non-negotiable (Pitfall C3).
+- **Railway is the primary deployment path** — Docker Compose is secondary. PocketBase Volume at `/pb_data` must be attached before first deploy to prevent data loss on restart. (01-06)
 
 ### Open Questions (pre-Phase 1)
 
@@ -79,7 +80,7 @@ None currently.
 
 ## Session Continuity
 
-**To resume:** Run `/gsd-execute-phase 1` to continue Phase 1 execution (next: 01-03).
+**To resume:** Run `/gsd-execute-phase 2` to begin Phase 2 — Core Data & Wars.
 **Files:** All planning artifacts live in `C:\Users\Kramer\Desktop\VS3\.planning\`.
 **Source references:** `VS3_Panel_1_2_1.html` (v1 logic), `VS3_Rules_Node_Handbook_v1.3.0.html` (game rules).
-**Last completed:** 01-02 — pb_hooks scheduler placeholder, auth hooks, SCHEMA.md (2026-05-01)
+**Last completed:** 01-06 — deployment infrastructure (Dockerfiles, docker-compose, railway.toml, DEPLOYMENT.md) (2026-05-01)
