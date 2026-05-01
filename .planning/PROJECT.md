@@ -1,8 +1,8 @@
-# VS3 Admin Panel v2
+# VS3 Admin Panel v2.0.0
 
 ## What This Is
 
-A web-based admin panel for managing VS3 (Vintage Season 3), a roleplay Minecraft server built on Vintage Story. It replaces and expands on the existing single-file HTML panel (v1.2.1) with a shared backend, multi-user authentication, and automation of the server's complex economic and political systems. A small staff team (3–6 people) uses the full admin view; faction members get a scoped read-only player portal showing only their own faction's data.
+A web-based admin panel for managing VS3 (Vintage Season 3), a roleplay Minecraft server built on Vintage Story. It replaces and expands on the existing single-file HTML panel (v1.2.1) with a shared backend, multi-user authentication, and automation of the server's complex economic and political systems. A small staff team (3–6 people) uses the full admin view; faction members get a scoped read-only player portal showing only their own faction's data. The visual identity refines and elevates the dark gold medieval aesthetic of v1.2.1.
 
 ## Core Value
 
@@ -96,7 +96,7 @@ Upkeep cycle management must be fast, accurate, and automated — staff should b
 | Fresh build, not port of v1.2.1 | v1.2.1 localStorage architecture can't support multi-user shared state; clean start avoids legacy debt | — Pending |
 | Player portal is faction-scoped | Other factions' node states are strategic information — hiding them is a design requirement, not a UX choice | — Pending |
 | Staff still enters data manually | Discord-verify-then-enter flow is trusted and sufficient; removing it would require in-game mod integration out of scope | — Pending |
-| Tech stack TBD | Research phase will determine the simplest self-hostable stack (likely PocketBase or lightweight Node.js + SQLite) | — Pending |
+| PocketBase + SvelteKit as the stack | PocketBase is a single binary with built-in auth, RBAC, SQLite, and real-time — eliminates weeks of infrastructure code. SvelteKit is the leanest modern framework for data-heavy admin UIs. Chosen over Express + custom auth because user has zero coding experience and deployment simplicity is a hard constraint. | — Confirmed by research |
 
 ## Evolution
 
