@@ -50,7 +50,7 @@ Declared values (multiples of 4 only):
 | xs | 4px | Icon gaps, badge padding, inline gaps (sidebar icon-to-label) |
 | sm | 8px | Compact element spacing, topbar padding, table cell padding |
 | md | 16px | Default element spacing, card padding, content area padding |
-| lg | 24px | Section padding, form group spacing |
+| lg | 24px | Section padding, form group spacing, modal padding |
 | xl | 32px | Layout gaps, between major content sections |
 | 2xl | 48px | Major section breaks |
 | 3xl | 64px | Page-level vertical rhythm |
@@ -61,27 +61,29 @@ Exceptions:
 - Topbar height: 48px fixed
 - Modal max-width: 680px standard, 960px for wide modals (matches v1 `.modal` and `.modal.xl`)
 
-**Source:** v1 reference CSS (`.topbar` 8px/16px padding, `.card` 16px, `.content` 18px), CONTEXT.md D-10 (1024px minimum viewport).
+**Source:** v1 reference CSS (`.topbar` 8px/16px padding, `.card` 16px, `.content` 16px), CONTEXT.md D-10 (1024px minimum viewport).
 
 ---
 
 ## Typography
 
+Canonical type scale — exactly 4 sizes, exactly 2 weights. No other sizes or weights are permitted anywhere in the document or implementation.
+
 | Role | Size | Weight | Line Height | Usage |
 |------|------|--------|-------------|-------|
-| Body | 14px | 400 (regular) | 1.5 | Table cells, form values, modal body text, list items |
-| Label | 11px | 500 (medium) | 1.4 | Table headers (uppercase + letter-spacing 0.06em), form field labels (uppercase + letter-spacing 0.05em), stat card labels |
-| Heading | 15px | 600 (semibold) | 1.3 | Card headers, section titles, sidebar section group labels |
-| Display | 22px | 700 (bold) | 1.2 | Stat card values (large numbers), login panel title |
+| Label | 11px | 600 (semibold) | 1.4 | Table headers (uppercase + letter-spacing 0.06em), form field labels (uppercase + letter-spacing 0.05em), stat card labels, badge text, section divider labels |
+| Body | 14px | 400 (regular) | 1.5 | Table cells, form values, modal body text, list items, button text, footnotes, sub-headings, secondary copy |
+| Heading | 15px | 600 (semibold) | 1.3 | Card headers, page headings, modal titles, topbar brand, sidebar section group labels, topbar username |
+| Display | 22px | 600 (semibold) | 1.2 | Stat card values (large numbers), login brand text, page-level display elements |
 
 **Typography rules:**
-- Table headers use `text-transform: uppercase` and `letter-spacing: 0.06em` at 11px/weight-500 — this is the v1 pattern and must be preserved.
-- Form field labels use `text-transform: uppercase` and `letter-spacing: 0.05em` at 11px — same pattern.
-- Section divider labels (e.g. "STAFF ACCOUNTS", "MEMBER ACCOUNTS") use gold color at 12px/weight-600/uppercase — these are the v1 `.sh h3` pattern.
-- Brand/logo text in the topbar: 15px/weight-700, gold color, `letter-spacing: 0.05em`.
+- Table headers use `text-transform: uppercase` and `letter-spacing: 0.06em` at 11px/weight-600 — this is the v1 pattern and must be preserved.
+- Form field labels use `text-transform: uppercase` and `letter-spacing: 0.05em` at 11px/weight-600 — same pattern.
+- Section divider labels (e.g. "STAFF ACCOUNTS", "MEMBER ACCOUNTS") use gold color at 11px/weight-600/uppercase — these are the v1 `.sh h3` pattern.
+- Brand/logo text in the topbar: 15px/weight-600, gold color, `letter-spacing: 0.05em`.
 - No font downloads. System stack resolves to Segoe UI on Windows (primary user machines), system-ui fallback elsewhere.
 
-**Source:** v1 reference CSS (`font-size: 14px` body, `th` 10px uppercase, `.card-hdr h2` 15px/600, `.scard .sv` 22px/700), D-17.
+**Source:** v1 reference CSS (`font-size: 14px` body, `th` uppercase, `.card-hdr h2` 15px/600, `.scard .sv` 22px/700), D-17. Weights consolidated to 2 per spec; Display demoted from 700 to 600.
 
 ---
 
@@ -141,19 +143,20 @@ These patterns are derived from the v1 reference and must be carried forward. Th
 - Inactive nav item text: `#8b7d65` (text-muted)
 - Inactive nav item `:hover`: text `#d4c5a0` (text-primary), background `rgba(212,193,160,0.04)`
 - Disabled nav items ("Coming in Phase N"): text-muted, `cursor: not-allowed`, no hover effect
-- Section group labels: 11px uppercase, `letter-spacing: 0.07em`, gold `#c4a45a`, 8px vertical padding
+- Section group labels: 11px/600, uppercase, `letter-spacing: 0.07em`, gold `#c4a45a`, 8px vertical padding
+- Separator lines: `#3d3426` 1px horizontal rule, 8px vertical margin
 
 ### Topbar
 
 - Fixed top bar, 48px height, full width
 - Background: `#231d14` (bg-secondary)
 - Bottom border: 1px solid `#3d3426`
-- Left: brand/logo text — "VS3 Panel" in 15px/700/gold
-- Right: username (14px, text-primary) + role badge + logout button
+- Left: brand/logo text — "VS3 Panel" in 15px/600/gold, `letter-spacing: 0.05em`
+- Right: username (14px/400, text-primary) + role badge + logout button
 - Role badge variants:
   - "Head Admin": gold background fill `rgba(196,164,90,0.2)`, gold border `rgba(196,164,90,0.3)`, text `#c4a45a`, 11px/600
   - "Staff": muted background `rgba(139,125,101,0.15)`, border `#3d3426`, text `#8b7d65`, 11px/600
-- Logout button: ghost variant, 13px, text-muted, `:hover` text-primary
+- Logout button: ghost variant, 14px/400, text-muted, `:hover` text-primary
 
 ### Cards
 
@@ -161,20 +164,20 @@ These patterns are derived from the v1 reference and must be carried forward. Th
 - Border: 1px solid `#3d3426`
 - Border-radius: `0.375rem` (matches shadcn `--radius`)
 - Padding: 16px
-- Card header: flex row, space-between, 14px bottom padding, 1px solid border bottom
+- Card header: flex row, space-between, 16px bottom padding, 1px solid border bottom
 - Card header title: 15px/600, text-primary
 
 ### Tables
 
 - Full-width, no external border
-- `th`: 10-11px/500, uppercase, `letter-spacing: 0.06em`, text-muted, 7px/9px padding, border-bottom 1px solid `#3d3426`
-- `td`: 14px/400, text-primary, 8px/9px padding, border-bottom `rgba(196,164,90,0.06)` (very subtle row divider)
+- `th`: 11px/600, uppercase, `letter-spacing: 0.06em`, text-muted, 8px padding, border-bottom 1px solid `#3d3426`
+- `td`: 14px/400, text-primary, 8px padding, border-bottom `rgba(196,164,90,0.06)` (very subtle row divider)
 - Last row: no bottom border
 - Row `:hover`: background `rgba(196,164,90,0.03)` (barely perceptible warm tint)
 
 ### Badges
 
-Pill shape (`border-radius: 999px`), 11px/600, 2px vertical / 7px horizontal padding.
+Pill shape (`border-radius: 999px`), 11px/600, 4px vertical / 8px horizontal padding.
 
 | Badge | Background | Border | Text |
 |-------|-----------|--------|------|
@@ -193,19 +196,19 @@ Three variants only in Phase 1:
 | Gold (primary action) | transparent | 1px solid `#c4a45a` | `#c4a45a` | background `rgba(196,164,90,0.12)` |
 | Danger (destructive) | transparent | 1px solid `#8b2b2b` | `#ff9999` | background `rgba(139,43,43,0.12)` |
 
-All buttons: 6px/14px padding, `border-radius: 0.375rem`, 13px/400.
-Small variant: 4px/9px padding, 12px, `border-radius: calc(0.375rem - 2px)`.
+All buttons: 8px vertical / 16px horizontal padding, `border-radius: 0.375rem`, 14px/400.
+Small variant: 4px vertical / 8px horizontal padding, 11px/600, `border-radius: calc(0.375rem - 2px)`.
 
 ### Form Fields
 
 - Input/select/textarea background: `#2c2518` (bg-tertiary)
 - Border: 1px solid `#3d3426`
 - `:focus` border: 1px solid `#c4a45a` (gold), no outline
-- Text: 13px/400, text-primary `#d4c5a0`
+- Text: 14px/400, text-primary `#d4c5a0`
 - Placeholder text: text-muted `#8b7d65`
-- Padding: 8px/10px
+- Padding: 8px vertical / 16px horizontal
 - Border-radius: `0.375rem`
-- Label above field: 11px/500, uppercase, `letter-spacing: 0.05em`, text-muted
+- Label above field: 11px/600, uppercase, `letter-spacing: 0.05em`, text-muted
 
 ### Modals / Dialogs
 
@@ -213,15 +216,15 @@ Small variant: 4px/9px padding, 12px, `border-radius: calc(0.375rem - 2px)`.
 - Modal panel background: `#231d14` (bg-secondary)
 - Border: 1px solid `rgba(196,164,90,0.28)` (slightly brighter than standard border for depth)
 - Border-radius: `calc(0.375rem + 2px)` (slightly larger than card radius)
-- Padding: 22px
+- Padding: 24px
 - Max-width: 680px standard / 960px wide variant
-- Close button: top-right absolute position, 22px, text-muted, `:hover` text-primary
-- Modal title: 17px/700, text-primary
-- Modal subtitle: 12px/400, text-muted, 4px below title, 16px above content
+- Close button: top-right absolute position, 24px touch target, text-muted, `:hover` text-primary
+- Modal title: 15px/600, text-primary
+- Modal subtitle: 11px/400, text-muted, 4px below title, 16px above content
 
 ### Alert/Notice Banners
 
-Four severity variants with consistent structure (icon + text, 9px/12px padding, `border-radius: 0.375rem`):
+Four severity variants with consistent structure (icon + text, 8px vertical / 16px horizontal padding, `border-radius: 0.375rem`):
 
 | Severity | Background | Border | Text |
 |----------|-----------|--------|------|
@@ -232,11 +235,11 @@ Four severity variants with consistent structure (icon + text, 9px/12px padding,
 
 ### Scrollbar
 
-Custom scrollbar: 6px width/height, track `#231d14`, thumb `#2c2518`, `border-radius: 3px`. Applied globally.
+Custom scrollbar: 4px width/height, track `#231d14`, thumb `#2c2518`, `border-radius: 4px`. Applied globally.
 
 ### Empty States
 
-Centered in their container, 32px vertical padding, 13px/400, text-muted. No icon in Phase 1 (icons added in Phase 2+ with node/faction data).
+Centered in their container, 32px vertical padding, 14px/400, text-muted. No icon in Phase 1 (icons added in Phase 2+ with node/faction data).
 
 ---
 
@@ -247,15 +250,17 @@ Centered in their container, 32px vertical padding, 13px/400, text-muted. No ico
 **Layout:** Centered card on page background (`#1a1410`). Card max-width 400px, vertically centered on viewport.
 
 **Elements:**
-- Logo/brand text at top of card: "VS3 Panel" in 20px/700/gold, "v2.0.0" in 12px/400/text-muted beside it
-- Sub-heading: "Staff & Member Access" in 13px/400/text-muted, 8px below brand
+- Logo/brand text at top of card: "VS3 Panel" in 22px/600/gold, "v2.0.0" in 11px/400/text-muted beside it
+- Sub-heading: "Staff & Member Access" in 14px/400/text-muted, 8px below brand
 - Divider: 1px solid border, 16px margin
 - Username input with label "USERNAME"
 - Password input with label "PASSWORD" (type="password")
 - "Sign In" button — gold variant, full width, 16px top margin
 - Error notice (alert danger variant) appears between button and form when login fails: "Invalid username or password. Check your credentials and try again."
 - Session-expired notice (alert warning variant) appears above form when redirected with expired session: "Your session has expired. Please sign in again."
-- 13px/400/text-muted footnote at card bottom: "Access issues? Contact your Head Admin."
+- 14px/400/text-muted footnote at card bottom: "Access issues? Contact your Head Admin."
+
+**Validation errors:** 11px/400, danger color (`#ff9999`), appear inline below each field.
 
 **Interaction:**
 - Form submits via SvelteKit form action with `use:enhance` for progressive enhancement
@@ -271,8 +276,8 @@ Centered in their container, 32px vertical padding, 13px/400, text-muted. No ico
 ### Surface 2: App Shell — Sidebar + Topbar (`(staff)` route group layout)
 
 **Topbar (48px, fixed top):**
-- Left: "VS3 Panel" brand (15px/700/gold) — no clickable link, purely decorative
-- Right cluster (8px gap): username text (14px/400/text-primary) + role badge + logout button (ghost, 13px, "Sign Out")
+- Left: "VS3 Panel" brand (15px/600/gold, `letter-spacing: 0.05em`) — no clickable link, purely decorative
+- Right cluster (8px gap): username text (14px/400/text-primary) + role badge + logout button (ghost, 14px/400, "Sign Out")
 - Clicking "Sign Out" triggers POST form action, clears session, redirects to `/login`
 
 **Sidebar (240px, fixed left, full height below topbar):**
@@ -291,7 +296,6 @@ Centered in their container, 32px vertical padding, 13px/400, text-muted. No ico
   11. Upkeep — disabled, tooltip "Coming in Phase 3"
   12. Metrics — disabled, tooltip "Coming in Phase 3"
 - Disabled items: cursor not-allowed, no hover, text-muted, with a small lock or clock icon from Lucide
-- Separator lines: `#3d3426` 1px horizontal rule, 8px vertical margin
 - Current route highlighted: left-border 2px gold, text gold, background `rgba(196,164,90,0.08)`
 
 **Lucide icons for nav (16px, stroke-width 1.5):**
@@ -315,14 +319,14 @@ Centered in their container, 32px vertical padding, 13px/400, text-muted. No ico
 This is the only substantive UI in Phase 1. It must demonstrate role-based access control visually and functionally.
 
 **Page layout:**
-- Page heading: "Staff Management" (20px/600/text-primary)
-- Sub-heading: "Manage staff and faction member accounts" (13px/400/text-muted)
+- Page heading: "Staff Management" (22px/600/text-primary)
+- Sub-heading: "Manage staff and faction member accounts" (14px/400/text-muted)
 - Role-gated action button: "Add Account" (gold variant) — visible only to Head Admin
 
 **Two sections on the page (separated by dividers with gold uppercase labels):**
 
 **Section A: Staff Accounts**
-- Label: "STAFF ACCOUNTS" (12px/600/gold/uppercase, `letter-spacing: 0.07em`)
+- Label: "STAFF ACCOUNTS" (11px/600/gold/uppercase, `letter-spacing: 0.07em`)
 - Table columns: Username | Role | Status | Last Login | Actions
 - Role column: badge (Head Admin = gold, Staff = muted)
 - Status column: badge (Active = success green, Inactive = danger red)
@@ -340,8 +344,8 @@ This is the only substantive UI in Phase 1. It must demonstrate role-based acces
 - Actions column: Head Admin and Staff can create/edit; Head Admin only can deactivate
 
 **Add/Edit Account dialog (modal, 680px):**
-- Title: "Add Account" or "Edit Account"
-- Sub-title: "Create a new staff or faction member account" or "Update account details"
+- Title: "Add Account" or "Edit Account" (15px/600, text-primary)
+- Sub-title: "Create a new staff or faction member account" or "Update account details" (11px/400, text-muted)
 - Radio or segmented control to select account type: "Staff Account" | "Member Account"
 - Fields for Staff Account:
   - Username (required)
@@ -353,18 +357,18 @@ This is the only substantive UI in Phase 1. It must demonstrate role-based acces
   - Faction: select from existing factions (only faction names in Phase 1 — list will be short)
 - Save button: "Save Account" (gold variant)
 - Cancel button: ghost variant
-- Validation errors appear inline below each field in danger color (`#ff9999`), 12px
+- Validation errors appear inline below each field in danger color (`#ff9999`), 11px/400
 
 **Deactivate confirmation dialog (modal, 400px):**
-- Title: "Deactivate Account"
-- Body: "Deactivating [username] will prevent them from signing in. Their data and history are preserved. You can reactivate this account at any time."
+- Title: "Deactivate Account" (15px/600, text-primary)
+- Body: "Deactivating [username] will prevent them from signing in. Their data and history are preserved. You can reactivate this account at any time." (14px/400, text-muted)
 - Confirm button: "Deactivate Account" (danger variant)
 - Cancel button: ghost variant
 
 **Empty state (when no accounts exist in a section):**
-- Heading: "No accounts yet"
-- Body: "Use 'Add Account' above to create the first account." (for staff section)
-- Body: "No faction member accounts have been created yet." (for member section)
+- Heading: "No accounts yet" (15px/600, text-primary)
+- Body: "Use 'Add Account' above to create the first account." (for staff section, 14px/400, text-muted)
+- Body: "No faction member accounts have been created yet." (for member section, 14px/400, text-muted)
 
 **Role enforcement visual pattern:**
 - Staff-role users see a notice bar at the top of the page (info alert variant): "You have read-only access to this page. Contact a Head Admin to make changes."
@@ -378,12 +382,12 @@ This is the only substantive UI in Phase 1. It must demonstrate role-based acces
 ### Surface 4: Dashboard Stub (`/dashboard`)
 
 **Content:**
-- Page heading: "Dashboard" (20px/600/text-primary)
-- Sub-heading: "Server overview and health metrics" (13px/400/text-muted)
+- Page heading: "Dashboard" (22px/600/text-primary)
+- Sub-heading: "Server overview and health metrics" (14px/400/text-muted)
 - One card, full-width, containing:
   - Icon (Lucide `Construction`, 32px, text-muted)
   - Heading: "Dashboard coming in Phase 2" (15px/600/text-primary, centered)
-  - Body: "Faction health, node status, and upkeep metrics will appear here once Phase 2 is complete." (13px/400/text-muted, centered, max-width 400px)
+  - Body: "Faction health, node status, and upkeep metrics will appear here once Phase 2 is complete." (14px/400/text-muted, centered, max-width 400px)
 - No interactive elements on this stub
 
 **Source:** D-11 (stub with "Phase 2" placeholder), ROADMAP.md Phase 1 scope.
@@ -393,10 +397,10 @@ This is the only substantive UI in Phase 1. It must demonstrate role-based acces
 ### Surface 5: Server Log Stub (`/server-log`)
 
 **Content:** Identical structure to Dashboard Stub, substituting:
-- Heading: "Server Log" (page heading)
-- Sub-heading: "Chronological record of all server events"
-- Card body heading: "Server Log coming in Phase 2"
-- Card body copy: "All faction, node, war, and upkeep events will be recorded here once Phase 2 is complete."
+- Heading: "Server Log" (page heading, 22px/600/text-primary)
+- Sub-heading: "Chronological record of all server events" (14px/400/text-muted)
+- Card body heading: "Server Log coming in Phase 2" (15px/600/text-primary)
+- Card body copy: "All faction, node, war, and upkeep events will be recorded here once Phase 2 is complete." (14px/400/text-muted)
 
 **Source:** D-11.
 
@@ -408,12 +412,12 @@ Accessible only to authenticated members collection users.
 
 **Content:**
 - Centered card, max-width 480px
-- Brand text: "VS3 Panel" in 18px/700/gold
-- Sub-text: "Faction Portal" in 13px/400/text-muted
+- Brand text: "VS3 Panel" in 22px/600/gold
+- Sub-text: "Faction Portal" in 14px/400/text-muted
 - Divider
 - Icon: Lucide `Clock` (32px, text-muted)
 - Heading: "Portal access coming soon" (15px/600/text-primary)
-- Body: "Your faction's upkeep status, node health, and alliance information will be available here in a future update." (13px/400/text-muted)
+- Body: "Your faction's upkeep status, node health, and alliance information will be available here in a future update." (14px/400/text-muted)
 - Logout button: ghost variant, "Sign Out", 16px top margin
 
 **Source:** D-14 (portal stub establishing route structure for Phase 4).
