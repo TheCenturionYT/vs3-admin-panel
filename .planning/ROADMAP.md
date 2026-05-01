@@ -54,7 +54,27 @@
   2. Staff can declare a war between two PvP factions and observe that the war upkeep modifier is instantly reflected in those factions' node upkeep displays — no manual recalculation
   3. Staff can log a battle outcome that results in ownership transfer, and the node's ownership timeline shows the new owner with method "violent" and the correct timestamp
   4. The server log shows filterable entries for faction changes, node changes, war declarations, alliance changes, and staff can add a free-text manual log entry
-**Plans**: TBD
+**Plans**: 10 plans in 4 waves
+
+**Wave 1** *(foundation — prerequisite for all other Phase 2 work)*
+- [ ] 02-01-PLAN.md — PocketBase schema expansion (all Phase 2 collections) + JSVM seed and log hooks
+- [ ] 02-02-PLAN.md — Upkeep utility (TDD), Vitest config, shadcn components, sidebar activation, InstabilityDot
+
+**Wave 2** *(parallel — both depend on Wave 1)*
+- [ ] 02-03-PLAN.md — Factions CRUD (list + detail, members, upkeep modifiers, active wars)
+- [ ] 02-04-PLAN.md — Nodes CRUD (list + detail, ownership timeline, per-node log, effective upkeep)
+
+**Wave 3** *(parallel — both depend on Wave 2)*
+- [ ] 02-05-PLAN.md — Wars CRUD (list + detail, battles, sieges, ownership transfer on battle)
+- [ ] 02-06-PLAN.md — Diplomacy CRUD (list with Active/History tabs, create/end agreement)
+
+**Wave 4** *(parallel — all depend on Wave 3; UI-only surfaces)*
+- [ ] 02-07-PLAN.md — Server Log upgrade (filterable log table, add manual entry)
+- [ ] 02-08-PLAN.md — SP Catalogue (read-only reference table with search/filter)
+- [ ] 02-09-PLAN.md — Server Settings (JSON export download + JSON import with confirmation)
+- [ ] 02-10-PLAN.md — Dashboard upgrade (stat cards, instability overview, active wars widget)
+
+**Cross-cutting constraints:** Upkeep formula never stored — always computed from live data; JSVM API locked to 0.22.x ($app.dao()); deleteRule on factions prevents Neutral Territory deletion; head_admin required for all destructive actions at both route and DB rule level
 **UI hint**: yes
 
 ### Phase 3: Upkeep Engine & Automation
@@ -86,6 +106,6 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 6/6 | Complete | 2026-05-01 |
-| 2. Core Data & Wars | 0/? | Not started | - |
+| 2. Core Data & Wars | 0/10 | Planned | - |
 | 3. Upkeep Engine & Automation | 0/? | Not started | - |
 | 4. Player Portal | 0/? | Not started | - |
