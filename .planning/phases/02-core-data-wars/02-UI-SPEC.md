@@ -1,7 +1,8 @@
 ---
 phase: 2
 slug: core-data-wars
-status: draft
+status: approved
+reviewed_at: 2026-05-01
 shadcn_initialized: true
 preset: "VS3 medieval gold palette — established in Phase 1, carried forward unchanged"
 created: 2026-05-01
@@ -56,8 +57,8 @@ No new third-party registries. Registry safety gate: not applicable.
 
 Exceptions (Phase 2 additions):
 - Ownership timeline connector line: 2px wide, full height of timeline item
-- Instability dot indicators: 8px diameter (w-2 h-2) for compact displays, 10px (w-2.5 h-2.5) for detail views
-- Filter bar height on Server Log: 40px (py-[10px] + 14px font = 40px total, consistent with input fields)
+- Instability dot indicators: 8px diameter (w-2 h-2) for compact displays, 12px (w-3 h-3) for detail views
+- Filter bar height on Server Log: 40px (`py-3` = 12px padding + 14px font-size + 2px border ≈ 40px, consistent with input fields)
 - List + detail panel split: left list panel 320px fixed width, right detail panel fills remaining space
 
 ---
