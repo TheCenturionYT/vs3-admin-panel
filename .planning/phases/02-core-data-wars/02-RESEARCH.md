@@ -862,22 +862,25 @@ All Phase 1 constraints carry forward. Phase 2-specific constraints:
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Server log actor field — how to get staff username in JSVM hook?**
+1. **Server log actor field — how to get staff username in JSVM hook?** **(RESOLVED)**
    - What we know: `onRecordAfterCreateSuccess` receives `e.record` but not the HTTP request auth context reliably in 0.22.x hooks
    - What's unclear: Can JSVM hooks in 0.22.x access `e.httpContext` or request auth token to derive the staff username?
    - Recommendation: Default `actor` to "System" in JSVM hooks. For LOG-04 (manual entries), the SvelteKit form action writes the record directly using `locals.pb.authStore.record.username` as actor. Acceptable split for Phase 2.
+   - **RESOLUTION:** `actor` defaults to "System" in all JSVM hooks (0.22.x does not expose request auth context reliably in `onRecordAfterCreateSuccess`). Explicit user action entries (LOG-04 manual entries) set actor via `locals.pb.authStore.record?.username` in the SvelteKit form action. This split is acceptable for Phase 2.
 
-2. **`factions` collection Phase 1 stub — what fields exist?**
+2. **`factions` collection Phase 1 stub — what fields exist?** **(RESOLVED)**
    - What we know: Phase 1 created a `factions` stub with at minimum `name` field (used by staff-management for member assignment)
    - What's unclear: Phase 1 CONTEXT.md D-19 says "factions (name only)" — needs `type`, `color`, `description`, `is_system` added in Phase 2
    - Recommendation: Phase 2 Wave 0 task adds these fields via PocketBase admin UI before other work begins. Verify `name` field constraint (required, unique?) before adding fields.
+   - **RESOLUTION:** Plan 02-01 Task 1 (checkpoint:human-action) verifies the existing `factions` stub fields before adding `type`, `color`, `description`, and `is_system`. The task instructions explicitly state to check current fields first. This is the correct approach for an incremental schema expansion.
 
-3. **`server_log` Phase 1 stub — what schema exists?**
+3. **`server_log` Phase 1 stub — what schema exists?** **(RESOLVED)**
    - What we know: Phase 1 created `server_log` collection (per D-19). No fields were specified in CONTEXT.md.
    - What's unclear: Whether Phase 1 added any fields or left it empty
    - Recommendation: Wave 0 verifies existing fields in admin UI and adds missing ones. If all fields need adding, treat as new collection.
+   - **RESOLUTION:** Plan 02-01 Task 1 (checkpoint:human-action) verifies the existing `server_log` stub fields before adding the Phase 2 fields (`event_type`, `description`, `related_faction`, `related_node`, `actor`). If all fields are absent (empty stub), treat as a new collection and add all five. The checkpoint instructions cover both cases.
 
 ---
 
