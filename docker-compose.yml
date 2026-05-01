@@ -1,0 +1,46 @@
+# VS3 Admin Panel — Docker Compose (secondary deployment path)
+# Primary path is Railway (see docs/DEPLOYMENT.md).
+#
+# Usage:
+#   1. Copy .env.example to .env and fill in values
+#   2. docker compose up -d
+#   3. Open http://localhost:8090/_/ to set up PocketBase superuser
+#   4. Open http://localhost:3000 to use the panel
+
+services:
+  pocketbase:
+    build:
+      context: .
+      dockerfile: Dockerfile.pb
+    volumes:
+      - pb_data:/pb_data
+      # Development: mount pb_hooks live so changes reload without rebuild
+      - ./pb_hooks:/pb_hooks:ro
+    ports:
+      - "8090:8090"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8090/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=production
+      - POCKETBASE_URL=http://pocketbase:8090
+      - PUBLIC_POCKETBASE_URL=${PUBLIC_POCKETBASE_URL:-http://localhost:8090}
+      - ORIGIN=${ORIGIN:-http://localhost:3000}
+    ports:
+      - "3000:3000"
+    depends_on:
+      pocketbase:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pb_data:

@@ -1,0 +1,20 @@
+# VS3 Admin Panel — Railway Configuration
+# Configures the SvelteKit service deployment on Railway.
+# PocketBase service is configured separately in the Railway dashboard.
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+# Note: Environment variables are set in Railway's dashboard, not here.
+# Required env vars for Railway deployment:
+#   POCKETBASE_URL      — Railway private network URL of PocketBase service
+#   PUBLIC_POCKETBASE_URL — Public URL of the PocketBase Railway service
+#   ORIGIN              — Public URL of the SvelteKit app service (required by adapter-node)
+#   NODE_ENV            — production
