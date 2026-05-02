@@ -154,7 +154,7 @@ export const INSTAB_EVENTS: InstabEvent[] = [
   { node: 'Trade Post', name: 'Spoiled Goods', desc: 'Shipment rots or breaks.', effect: 'Lose one output bundle.', outputPenalty: 100 },
   { node: 'Trade Post', name: 'Smuggling Ring', desc: 'Untaxed goods bypass tariffs.', effect: '-25% SMD output.', outputPenalty: 25 },
   { node: 'Trade Post', name: 'Merchant Boycott', desc: 'Traders avoid the market.', effect: '-50% SMD output this cycle.', outputPenalty: 50 },
-  { node: 'Trade Post', name: 'Bank Panic', desc: 'Confidence collapses.', effect: '+1 instability or pay 40 SMD.', instabAdd: 1, spCost: 4, choice: true },
+  { node: 'Trade Post', name: 'Bank Panic', desc: 'Confidence collapses.', effect: '+1 instability or pay 4 SP (= 40 SMD).', instabAdd: 1, spCost: 4, choice: true },
 
   // --- Military Node (7 events) ---
   { node: 'Military Node', name: 'Desertion', desc: 'Garrison members slip away.', effect: '+1 instability or lose mil benefit.', instabAdd: 1, rp: true },

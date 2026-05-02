@@ -139,7 +139,7 @@ migrate((db) => {
 
     // ── 3-6. Seed default deadline_config row ────────────────────────────
     const cfgCol = dao.findCollectionByNameOrId("deadline_config");
-    const existing = dao.findRecordsByFilter("deadline_config", "", "", 1, 0);
+    const existing = dao.findRecordsByFilter("deadline_config", "id != ''", "", 1, 0);
     if (!existing || existing.length === 0) {
         const rec = new Record(cfgCol);
         rec.set("day_of_week", 6);
@@ -153,13 +153,14 @@ migrate((db) => {
 
 }, (db) => {
     const dao = Dao(db);
-    // Drop Phase 3 collections in reverse order (skip job_run_log — owned by Phase 2 migration)
+    // Drop Phase 3 collections in reverse dependency order.
+    // job_run_log is owned by the Phase 2 migration — do NOT drop it here.
     for (const name of [
         "instability_rolls",
         "deadline_config",
         "submission_history",
-        "submissions",
-        "job_run_log"
+        "submissions"
+        // job_run_log is owned by the Phase 2 migration — do NOT drop it here
     ]) {
         try { dao.deleteCollection(dao.findCollectionByNameOrId(name)); } catch (_) {}
     }

@@ -210,7 +210,10 @@ function processDeadlines() {
             histRec.set("required_sp", req);
             histRec.set("outcome", outcome);
             histRec.set("instab_delta", instabDelta);
-            histRec.set("snapshot", JSON.stringify(snapshot));
+            // PocketBase json-typed fields accept native JS objects/arrays — do not JSON.stringify.
+            // Calling JSON.stringify here causes double-encoding: PocketBase serializes the string
+            // literal again, so the SDK returns a string instead of an array when reading.
+            histRec.set("snapshot", snapshot);
             txApp.save(histRec);
 
             // Delete current cycle submissions for this node (cleared after archival).
