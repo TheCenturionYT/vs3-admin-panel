@@ -511,10 +511,12 @@ export const actions: Actions = {
       is_rp: formData.get('is_rp') || undefined
     });
     if (!parsed.success) return fail(400, { action: 'rollInstability', errors: parsed.error.flatten().fieldErrors });
+    let rollId = '';
     try {
-      await locals.pb.collection('instability_rolls').create({
+      const rollRecord = await locals.pb.collection('instability_rolls').create({
         node: params.id, ...parsed.data, resolved: !parsed.data.triggered
       });
+      rollId = rollRecord.id as string;
       // If not triggered, immediately clear roll_due (no event to resolve)
       if (!parsed.data.triggered) {
         await locals.pb.collection('nodes').update(params.id, { roll_due: false });
@@ -522,7 +524,7 @@ export const actions: Actions = {
     } catch {
       return fail(500, { action: 'rollInstability', errors: { _global: ['Failed to save roll.'] } });
     }
-    return { success: true, action: 'rollInstability' };
+    return { success: true, action: 'rollInstability', rollId };
   },
 
   resolveEvent: async ({ request, locals, params }) => {
