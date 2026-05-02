@@ -1,7 +1,7 @@
 /// <reference path="../pb_data/types.d.ts" />
 migrate((db) => {
   const dao = new Dao(db)
-  const collection = dao.findCollectionByNameOrId("586x752z2iow3wq")
+  const collection = dao.findCollectionByNameOrId("staff")
 
   collection.options = {
     "allowEmailAuth": false,
@@ -18,7 +18,7 @@ migrate((db) => {
   return dao.saveCollection(collection)
 }, (db) => {
   const dao = new Dao(db)
-  const collection = dao.findCollectionByNameOrId("586x752z2iow3wq")
+  const collection = dao.findCollectionByNameOrId("staff")
 
   collection.options = {}
 
