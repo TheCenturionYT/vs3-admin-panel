@@ -1,6 +1,6 @@
 <script lang="ts">
   import InstabilityDot from '$lib/components/InstabilityDot.svelte';
-  import { MapPin } from '@lucide/svelte';
+  import { MapPin, Swords } from '@lucide/svelte';
   import type { PageData } from './$types';
 
   let { data }: { data: PageData } = $props();
@@ -10,6 +10,18 @@
     return new Date(iso).toLocaleDateString('en-GB', {
       day: 'numeric', month: 'short', year: 'numeric'
     });
+  }
+
+  function getAllianceBadgeStyle(type: string): string {
+    const styles: Record<string, string> = {
+      'Alliance':         'background: rgba(61,107,61,0.15); border: 1px solid rgba(61,107,61,0.3); color: #90cc90;',
+      'NAP':              'background: rgba(85,136,170,0.15); border: 1px solid rgba(85,136,170,0.3); color: #88bbdd;',
+      'Trade Agreement':  'background: rgba(196,164,90,0.15); border: 1px solid rgba(196,164,90,0.3); color: #c4a45a;',
+      'Vassalage':        'background: rgba(160,100,40,0.15); border: 1px solid rgba(160,100,40,0.3); color: #e07840;',
+      'Coalition':        'background: rgba(139,43,43,0.15); border: 1px solid rgba(139,43,43,0.3); color: #e08080;',
+      'Custom':           'background: rgba(139,125,101,0.15); border: 1px solid #3d3426; color: #8b7d65;'
+    };
+    return styles[type] ?? styles['Custom'];
   }
 </script>
 
@@ -103,3 +115,91 @@
     {/each}
   </div>
 {/if}
+
+<div class="border-t border-border my-12"></div>
+
+<h2 class="text-[22px] font-semibold text-foreground">War & Alliance Board</h2>
+<p class="text-[14px] text-muted-foreground mt-1 mb-6">
+  Global view — all active wars and alliances
+</p>
+
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+
+  <!-- Left column — Active Wars -->
+  <div>
+    <div class="text-[11px] font-semibold uppercase tracking-wider mb-3"
+      style="color: #c4a45a;">
+      ACTIVE WARS
+    </div>
+
+    {#if data.wars.length === 0}
+      <div class="bg-muted rounded-md p-4 text-center">
+        <span class="text-[14px] text-muted-foreground">No active wars.</span>
+      </div>
+    {:else}
+      <div class="flex flex-col gap-2">
+        {#each data.wars as war (war.id)}
+          <div class="bg-card border border-border rounded-md p-4">
+            <!-- Row 1: parties -->
+            <div class="flex items-center gap-1 text-[14px] font-semibold text-foreground">
+              <span>{war.factionAName}</span>
+              <Swords class="w-3 h-3 text-muted-foreground mx-1" aria-label="vs" />
+              <span>{war.factionBName}</span>
+            </div>
+            <!-- Row 2: casus belli (omit if empty) -->
+            {#if war.casusBelli}
+              <div class="mt-1 text-[11px]">
+                <span class="text-muted-foreground">Casus belli: </span>
+                <span class="text-foreground">{war.casusBelli}</span>
+              </div>
+            {/if}
+            <!-- Row 3: start date -->
+            <div class="mt-1 text-[11px] text-muted-foreground">
+              Since {formatDate(war.startDate)}
+            </div>
+          </div>
+        {/each}
+      </div>
+    {/if}
+  </div>
+
+  <!-- Right column — Active Alliances -->
+  <div>
+    <div class="text-[11px] font-semibold uppercase tracking-wider mb-3"
+      style="color: #c4a45a;">
+      ACTIVE ALLIANCES
+    </div>
+
+    {#if data.alliances.length === 0}
+      <div class="bg-muted rounded-md p-4 text-center">
+        <span class="text-[14px] text-muted-foreground">No active alliances.</span>
+      </div>
+    {:else}
+      <div class="flex flex-col gap-2">
+        {#each data.alliances as alliance (alliance.id)}
+          {@const allianceBadgeStyle = getAllianceBadgeStyle(alliance.type)}
+          {@const partyDisplay = alliance.parties.length === 2
+            ? `${alliance.parties[0]} & ${alliance.parties[1]}`
+            : alliance.parties.length > 2
+              ? `${alliance.parties[0]}, ${alliance.parties[1]}, and ${alliance.parties.length - 2} more`
+              : alliance.parties.join(', ')}
+          <div class="bg-card border border-border rounded-md p-4">
+            <!-- Row 1: type badge + parties -->
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold"
+                style={allianceBadgeStyle}>
+                {alliance.type}
+              </span>
+              <span class="text-[14px] text-foreground">{partyDisplay}</span>
+            </div>
+            <!-- Row 2: start date -->
+            <div class="mt-1 text-[11px] text-muted-foreground">
+              Since {formatDate(alliance.startDate)}
+            </div>
+          </div>
+        {/each}
+      </div>
+    {/if}
+  </div>
+
+</div><!-- end grid -->
