@@ -1,29 +1,48 @@
-# VS3 Admin Panel — SvelteKit Service
-# Multi-stage build: build stage installs deps and compiles; runner stage is minimal
-FROM node:22-alpine AS builder
-WORKDIR /app
+# VS3 Admin Panel — Unified Service Dockerfile
+# Handles both SvelteKit and PocketBase from a single image.
+# Set SERVICE_TYPE=pocketbase in Railway vars to run PocketBase;
+# leave it unset (or set to svelte) to run SvelteKit.
 
-# Copy package files and install ALL dependencies (including devDeps needed for build)
+# ── Stage 1: Build SvelteKit ─────────────────────────────────────────────────
+FROM node:22-alpine AS svelte-builder
+WORKDIR /app
 COPY vs3-panel/package*.json ./
 RUN npm ci
-
-# Copy source and build
 COPY vs3-panel/ .
 RUN npm run build
-
-# Remove dev dependencies after build
 RUN npm prune --omit=dev
 
-FROM node:22-alpine AS runner
-WORKDIR /app
+# ── Stage 2: Download PocketBase binary ──────────────────────────────────────
+FROM alpine:3 AS pb-downloader
+ARG PB_VERSION=0.22.22
+RUN apk add --no-cache ca-certificates unzip wget \
+ && wget -q "https://github.com/pocketbase/pocketbase/releases/download/v${PB_VERSION}/pocketbase_${PB_VERSION}_linux_amd64.zip" \
+         -O /tmp/pb.zip \
+ && unzip /tmp/pb.zip pocketbase -d /tmp/ \
+ && chmod +x /tmp/pocketbase \
+ && rm /tmp/pb.zip
 
-# Copy built output and production dependencies
-COPY --from=builder /app/build ./build
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./package.json
+# ── Stage 3: Runtime image ───────────────────────────────────────────────────
+FROM node:22-alpine
+RUN apk add --no-cache ca-certificates
 
-EXPOSE 3000
+# PocketBase
+COPY --from=pb-downloader /tmp/pocketbase /usr/local/bin/pocketbase
+COPY pb_hooks/       /pb_hooks/
+COPY pb_migrations/  /pb_migrations/
+VOLUME /pb_data
+
+# SvelteKit
+COPY --from=svelte-builder /app/build        /app/build
+COPY --from=svelte-builder /app/node_modules /app/node_modules
+COPY --from=svelte-builder /app/package.json /app/package.json
+
 ENV NODE_ENV=production
 
-# adapter-node entry point
-CMD ["node", "build/index.js"]
+# SERVICE_TYPE=pocketbase → PocketBase; anything else → SvelteKit
+CMD ["/bin/sh", "-c", \
+  "if [ \"$SERVICE_TYPE\" = \"pocketbase\" ]; then \
+     /usr/local/bin/pocketbase serve --http=0.0.0.0:${PORT:-8090} --dir=/pb_data --hooksDir=/pb_hooks --migrationsDir=/pb_migrations; \
+   else \
+     node /app/build/index.js; \
+   fi"]
