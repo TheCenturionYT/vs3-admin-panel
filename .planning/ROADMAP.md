@@ -96,7 +96,7 @@
 - [x] 03-03-PLAN.md — Server Settings: Deadline Configuration card
 
 **Wave 3** *(depends on Wave 2)*
-- [ ] 03-04-PLAN.md — Node detail: tabs, submissions flow, cap preview, instability roll, cycle history
+- [x] 03-04-PLAN.md — Node detail: tabs, submissions flow, cap preview, instability roll, cycle history
 
 **Wave 4** *(parallel — both depend on Wave 3 / Wave 2)*
 - [ ] 03-05-PLAN.md — Dashboard: scheduler health card, overdue widget, quick-log modal, Process All Overdue
@@ -121,5 +121,5 @@
 |-------|----------------|--------|-----------|
 | 1. Foundation | 6/6 | Complete | 2026-05-01 |
 | 2. Core Data & Wars | 0/10 | Planned | - |
-| 3. Upkeep Engine & Automation | 3/6 | In Progress | - |
+| 3. Upkeep Engine & Automation | 4/6 | In Progress | - |
 | 4. Player Portal | 0/? | Not started | - |
