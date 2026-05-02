@@ -73,10 +73,15 @@
               style="background: rgba(200,100,40,0.2); border: 1px solid rgba(200,100,40,0.3); color: #e07840;">
               Underfunded
             </span>
-          {:else}
+          {:else if node.upkeepStatus === 'Unpaid'}
             <span class="px-2 py-1 rounded-full text-[11px] font-semibold"
               style="background: rgba(139,43,43,0.2); border: 1px solid rgba(139,43,43,0.3); color: #ff7070;">
               Unpaid
+            </span>
+          {:else}
+            <span class="px-2 py-1 rounded-full text-[11px] font-semibold"
+              style="background: rgba(80,80,80,0.2); border: 1px solid rgba(80,80,80,0.3); color: #999999;">
+              N/A
             </span>
           {/if}
         </div>

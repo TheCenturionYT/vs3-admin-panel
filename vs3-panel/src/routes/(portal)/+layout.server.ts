@@ -20,7 +20,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
     factionName = faction.name as string;
   } catch {
     // faction lookup failure is non-fatal for layout — portal page.server.ts will error properly
-    factionName = factionId;
+    factionName = 'Unknown Faction';
   }
 
   return {

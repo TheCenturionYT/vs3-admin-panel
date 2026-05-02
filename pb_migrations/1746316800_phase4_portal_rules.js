@@ -14,11 +14,12 @@ migrate((db) => {
     const STAFF = '@request.auth.role = "head_admin" || @request.auth.role = "staff"';
     const MEMBER_OR_STAFF = '@request.auth.role = "head_admin" || @request.auth.role = "staff" || @request.auth.collectionName = "members"';
 
-    // factions — members can view only their own faction
+    // factions — members can only list/view their own faction record (scoped by auth.faction = id)
     {
         const col = dao.findCollectionByNameOrId("factions");
-        col.listRule = MEMBER_OR_STAFF;
-        col.viewRule = '@request.auth.role = "head_admin" || @request.auth.role = "staff" || @request.auth.faction = id';
+        const FACTION_SCOPED = '@request.auth.role = "head_admin" || @request.auth.role = "staff" || @request.auth.faction = id';
+        col.listRule = FACTION_SCOPED;
+        col.viewRule = FACTION_SCOPED;
         dao.saveCollection(col);
     }
 

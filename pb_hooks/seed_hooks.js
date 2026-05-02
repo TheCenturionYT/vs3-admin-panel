@@ -7,7 +7,7 @@
 //   - Never crash PocketBase startup; all errors are caught and logged.
 //   - Uses $app.dao().saveRecord() per JSVM API contract.
 
-onBootstrap((e) => {
+onAfterBootstrap((e) => {
     // -------------------------------------------------------------------------
     // SEED 1: Neutral Territory faction
     // -------------------------------------------------------------------------
@@ -41,7 +41,7 @@ onBootstrap((e) => {
     // SEED 2: SP Catalogue items
     // -------------------------------------------------------------------------
     try {
-        const existing = $app.dao().findRecordsByFilter("sp_catalogue", "", "", 1, 0);
+        const existing = $app.dao().findRecordsByFilter("sp_catalogue", "id != ''", "", 1, 0);
 
         if (existing.length > 0) {
             console.log("[seed_hooks] sp_catalogue already has records — skipping seed.");
@@ -120,5 +120,34 @@ onBootstrap((e) => {
         console.error("[seed_hooks] Failed to seed sp_catalogue:", err);
     }
 
-    e.next();
+    // -------------------------------------------------------------------------
+    // SEED 3: Owner head_admin staff account (dev convenience — skip if exists)
+    // -------------------------------------------------------------------------
+    try {
+        let ownerExists = false;
+        try {
+            $app.dao().findFirstRecordByData("staff", "username", "Owner");
+            ownerExists = true;
+        } catch (_) {}
+
+        if (!ownerExists) {
+            const initialPassword = $os.getenv("OWNER_INITIAL_PASSWORD");
+            if (!initialPassword) {
+                console.error("[seed_hooks] OWNER_INITIAL_PASSWORD env var not set — skipping Owner seed. Set it before first deploy.");
+            } else {
+                const staffCol = $app.dao().findCollectionByNameOrId("staff");
+                const owner = new Record(staffCol);
+                owner.set("username", "Owner");
+                owner.set("role", "head_admin");
+                owner.setPassword(initialPassword);
+                $app.dao().saveRecord(owner);
+                console.log("[seed_hooks] Seeded 'Owner' head_admin staff account.");
+            }
+        } else {
+            console.log("[seed_hooks] 'Owner' staff account already exists — skipping.");
+        }
+    } catch (err) {
+        console.error("[seed_hooks] Failed to seed Owner staff account:", err);
+    }
+
 });

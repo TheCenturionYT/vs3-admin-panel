@@ -10,11 +10,18 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
     error(500, 'Faction not found');
   }
 
-  // 4 parallel queries — all via locals.pb (member token, never admin)
+  // Fetch faction first — getOne throws on missing record, never returns null
+  let faction;
+  try {
+    faction = await locals.pb.collection('factions').getOne(factionId);
+  } catch {
+    error(500, 'Faction not found');
+  }
+
+  // 3 parallel queries — all via locals.pb (member token, never admin)
   // diplomacy collection uses faction_a / faction_b fields (two-party agreements)
   // nodes use owner field (relation to factions), not a faction field
-  const [faction, rawNodes, wars, diplomacyAgreements] = await Promise.all([
-    locals.pb.collection('factions').getOne(factionId),
+  const [rawNodes, wars, diplomacyAgreements] = await Promise.all([
     // Filter: nodes owned by this faction (owner field) — excludes unowned/neutral nodes
     locals.pb.collection('nodes').getFullList({
       filter: 'owner = {:factionId}',
@@ -35,10 +42,6 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
     })
   ]);
 
-  if (!faction) {
-    error(500, 'Faction not found');
-  }
-
   // Count active wars involving this faction (for war upkeep modifier)
   const factionWarCount = wars.filter(
     (w) => w.faction_a === factionId || w.faction_b === factionId
@@ -51,9 +54,11 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
   let allSubmissions: Array<{ node: string; sp_value: number }> = [];
   if (nodeCount > 0) {
     try {
-      const nodeIds = rawNodes.map((n) => `"${n.id}"`).join(',');
+      const nodeFilter = rawNodes.map((n, i) => `node = {:nid${i}}`).join(' || ');
+      const nodeFilterValues = Object.fromEntries(rawNodes.map((n, i) => [`nid${i}`, n.id]));
       allSubmissions = await locals.pb.collection('submissions').getFullList({
-        filter: `node in (${nodeIds})`,
+        filter: nodeFilter,
+        filterValues: nodeFilterValues,
         fields: 'node,sp_value'
       });
     } catch {
@@ -92,8 +97,9 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
     const requiredSP: number = effectiveUpkeep;
     const paymentPct = requiredSP > 0 ? paidSP / requiredSP : 0;
 
-    let upkeepStatus: 'Paid' | 'Partial' | 'Underfunded' | 'Unpaid';
-    if (paymentPct >= 1) upkeepStatus = 'Paid';
+    let upkeepStatus: 'Paid' | 'Partial' | 'Underfunded' | 'Unpaid' | 'N/A';
+    if (requiredSP === 0) upkeepStatus = 'N/A';
+    else if (paymentPct >= 1) upkeepStatus = 'Paid';
     else if (paymentPct >= 0.5) upkeepStatus = 'Partial';
     else if (paymentPct > 0) upkeepStatus = 'Underfunded';
     else upkeepStatus = 'Unpaid';
