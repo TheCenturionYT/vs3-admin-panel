@@ -646,7 +646,7 @@ const isOverdue = lastRunAt
 
 ## Open Questions
 
-1. **Does `job_run_log` collection exist?**
+1. **Does `job_run_log` collection exist?** (RESOLVED)
    - What we know: `scheduler.js` comments reference it (`{ type, startedAt, completedAt, status, details }`). No migration file found.
    - What's unclear: Was it created manually via PocketBase admin UI in Phase 1 or Phase 2?
    - Recommendation: Wave 0 task must verify existence and field names. If absent, create it before implementing the scheduler body.

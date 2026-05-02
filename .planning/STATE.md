@@ -1,7 +1,7 @@
 # STATE — VS3 Admin Panel v2.0.0
 
 **Last updated:** 2026-05-01
-**Session type:** Phase 2 complete / Ready for Phase 3
+**Session type:** Phase 3 planned — ready to execute
 
 ---
 
@@ -20,15 +20,15 @@
 | Field | Value |
 |-------|-------|
 | Phase | 3 — Upkeep Engine |
-| Plan | Not yet planned |
-| Status | Discuss complete — ready to plan |
+| Plan | 6 plans in 4 waves |
+| Status | Ready to execute |
 | Blocking issue | None |
 
 **Progress:**
 ```
 [Phase 1: Foundation        ] [x] Complete — 6/6 plans complete
 [Phase 2: Core Data & Wars  ] [x] Complete — 10/10 plans complete
-[Phase 3: Upkeep Engine     ] [ ] Not started
+[Phase 3: Upkeep Engine     ] [ ] Planned — 6/6 plans ready, 0 executed
 [Phase 4: Player Portal     ] [ ] Not started
 ```
 
@@ -42,7 +42,7 @@ Overall: 2 of 4 phases complete
 |--------|-------|
 | Requirements mapped | 56/56 |
 | Phases defined | 4 |
-| Plans created | 16 (Phase 1: 6, Phase 2: 10) |
+| Plans created | 22 (Phase 1: 6, Phase 2: 10, Phase 3: 6) |
 | Plans complete | 16 (01-01 through 01-06, 02-01 through 02-10) — Phases 1 & 2 done |
 
 ---
@@ -75,7 +75,7 @@ None.
 
 ### Todos
 
-- [ ] Run `/gsd-plan-phase 3` — CONTEXT.md is ready at `.planning/phases/03-upkeep-engine/03-CONTEXT.md`
+- [ ] Run `/gsd-execute-phase 3` — 6 plans ready at `.planning/phases/03-upkeep-engine/`
 
 ### Blockers
 
@@ -85,7 +85,7 @@ None currently.
 
 ## Session Continuity
 
-**To resume:** Run `/gsd-plan-phase 3` — CONTEXT.md complete at `.planning/phases/03-upkeep-engine/03-CONTEXT.md`.
+**To resume:** Run `/gsd-execute-phase 3` — 6 plans ready at `.planning/phases/03-upkeep-engine/`.
 **Files:** All planning artifacts live in `C:\Users\Kramer\Desktop\VS3\.planning\`.
 **Source references:** `VS3_Panel_1_2_1.html` (v1 logic — calcUp, checkCaps, procDeadlines, INSTAB_EVENTS), `VS3_Rules_Node_Handbook_v1.3.0.html` (game rules).
 **Last completed:** Phase 2 — Core Data & Wars (10/10 plans, 2026-05-01). All collections, CRUD pages, hooks, dashboard, export/import delivered.
