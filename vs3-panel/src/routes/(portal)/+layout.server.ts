@@ -12,11 +12,23 @@ export const load: LayoutServerLoad = async ({ locals }) => {
   }
 
   const record = locals.pb.authStore.record;
+  const factionId = record?.faction as string;
+
+  let factionName = '';
+  try {
+    const faction = await locals.pb.collection('factions').getOne(factionId);
+    factionName = faction.name as string;
+  } catch {
+    // faction lookup failure is non-fatal for layout — portal page.server.ts will error properly
+    factionName = factionId;
+  }
+
   return {
     user: {
       id: record?.id as string,
       username: record?.username as string,
-      factionId: record?.faction as string
+      factionId,
+      factionName
     }
   };
 };
