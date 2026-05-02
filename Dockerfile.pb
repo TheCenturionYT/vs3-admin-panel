@@ -30,7 +30,6 @@ VOLUME /pb_data
 
 EXPOSE 8090
 
-# --dir: where PocketBase stores SQLite data (MUST be the mounted volume)
-# --hooksDir: where PocketBase loads JSVM hook files
-# --migrationsDir: where PocketBase finds migration files
-CMD ["/usr/local/bin/pocketbase", "serve", "--http=0.0.0.0:8090", "--dir=/pb_data", "--hooksDir=/pb_hooks", "--migrationsDir=/pb_migrations"]
+# Railway injects $PORT — use it so Railway's load balancer can reach PocketBase.
+# Falls back to 8090 for local / Docker Compose usage.
+CMD ["/bin/sh", "-c", "/usr/local/bin/pocketbase serve --http=0.0.0.0:${PORT:-8090} --dir=/pb_data --hooksDir=/pb_hooks --migrationsDir=/pb_migrations"]
