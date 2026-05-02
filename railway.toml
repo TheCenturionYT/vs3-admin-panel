@@ -1,10 +1,9 @@
 # VS3 Admin Panel — Railway Configuration
-# Configures the SvelteKit service deployment on Railway.
-# PocketBase service is configured separately in the Railway dashboard.
-
-[build]
-builder = "DOCKERFILE"
-dockerfilePath = "Dockerfile"
+# Build section intentionally omitted — each service sets its own Dockerfile
+# in the Railway dashboard so railway.toml doesn't override them.
+#
+# vs3-admin-panel service: Dockerfile path = /Dockerfile
+# satisfied-freedom service: Dockerfile path = /Dockerfile.pb
 
 [deploy]
 healthcheckPath = "/"
