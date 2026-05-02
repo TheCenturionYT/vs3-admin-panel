@@ -82,6 +82,14 @@ function writeServerLog(eventType, description, relatedFaction, relatedNode) {
 // All math is performed in UTC. The local deadline hour (H) in timezone offset (O, integer hours)
 // converts to UTC hour as ((H - O) + 24) % 24. The function finds the most recent UTC date that
 // matches the configured dayOfWeek at the computed utcHour:minute that is <= now.
+//
+// CROSS-MIDNIGHT EDGE CASE: When hour - tzOffset < 0, the deadline falls on a different
+// UTC calendar day than the local day. Example: Saturday 23:59 UTC-5 = Sunday 04:59 UTC.
+// In this case utcHour=4, UTC dayOfWeek=0 (Sunday), but the logical deadline day is 6
+// (Saturday). The dayDiff modular arithmetic handles this correctly: dayDiff for Sunday
+// targeting Saturday = (0 - 6 + 7) % 7 = 1, so dl is set to the most recent Saturday UTC.
+// The default seed (day_of_week=6, hour=23, minute=59, timezone_offset=-5) has been
+// manually verified to produce the correct deadlineTs for this configuration.
 function computeCurrentDeadline(dayOfWeek, hour, minute, tzOffset) {
     const utcHour = ((hour - tzOffset) % 24 + 24) % 24;
     const now = new Date();
@@ -132,6 +140,7 @@ function processDeadlines() {
     const nodes = $app.dao().findRecordsByFilter("nodes", filter, "", 0, 0);
 
     let processedCount = 0;
+    const nodeOutcomes = [];
 
     // All node writes, submission_history creates, and the idempotency stamp are executed
     // in a single transaction. If anything throws, no partial state is committed.
@@ -214,13 +223,32 @@ function processDeadlines() {
             txApp.save(node);
 
             processedCount++;
+            nodeOutcomes.push({
+                nodeId,
+                ownerId,
+                outcome,
+                instabDelta,
+                newInstab,
+                pct: Math.round(pct)
+            });
         }
 
         // Stamp the idempotency key INSIDE the transaction so the gate is atomic
         // with the node updates. A second concurrent run sees the stamp and exits.
-        cfg.set("last_processed_ts", deadlineTs);
-        txApp.save(cfg);
+        // Refetch cfg inside the transaction using txApp to avoid cross-DAO fragility
+        const cfgInTx = txApp.findRecordById("deadline_config", cfg.getId());
+        cfgInTx.set("last_processed_ts", deadlineTs);
+        txApp.save(cfgInTx);
     });
+
+    for (const n of nodeOutcomes) {
+        writeServerLog(
+            "upkeep_node_processed",
+            `Node ${n.nodeId}: outcome=${n.outcome}, paid=${Math.round(n.pct)}%, instab_delta=${n.instabDelta}, new_instab=${n.newInstab}`,
+            n.ownerId || null,
+            n.nodeId
+        );
+    }
 
     writeServerLog(
         "upkeep_deadline_processed",
@@ -257,6 +285,15 @@ cronAdd("upkeep_deadline_processor", "* * * * *", function () {
 // Returns the processDeadlines() result object directly so callers can distinguish
 // ran=true (work done), ran=false/already_processed (nothing to do), etc.
 routerAdd("POST", "/api/vs3/process-deadlines", function (e) {
+    // Require staff or head_admin role. $apis.requireAuth() permits any authenticated
+    // PocketBase session including members-collection player accounts. This explicit
+    // role check rejects members (who have no 'role' field on their collection record).
+    const authRecord = e.auth;
+    if (!authRecord) return e.json(401, { error: "Authentication required" });
+    const role = authRecord.get("role");
+    if (role !== "staff" && role !== "head_admin") {
+        return e.json(403, { error: "Staff access required" });
+    }
     try {
         const result = processDeadlines();
         if (result.ran) {

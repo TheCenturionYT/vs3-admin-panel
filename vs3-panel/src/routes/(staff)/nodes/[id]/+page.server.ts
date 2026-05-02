@@ -259,6 +259,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
       threshold: r.threshold as number,
       triggered: r.triggered as boolean,
       event_name: r.event_name as string ?? '',
+      event_desc: r.event_desc as string ?? '',
+      event_effect: r.event_effect as string ?? '',
       resolved: r.resolved as boolean,
       resolved_action: r.resolved_action as string ?? ''
     })),
@@ -442,6 +444,10 @@ export const actions: Actions = {
         return fail(400, { action: 'logSubmission', errors: { _global: [`This submission exceeds the 40% cap. Raw Renewable: ${cap.rrPct}%, Currency: ${cap.cPct}%.`] } });
       }
     } else if (submission_type === 'instability_reduction') {
+      const cur = (node as { instability?: number }).instability ?? 0;
+      if (cur <= 0) {
+        return fail(400, { action: 'logSubmission', errors: { _global: ['Instability is already 0. No reduction is needed.'] } });
+      }
       item_name = 'Instability Reduction';
       category = 'special';
       sp_value = INSTAB_REDUCTION_SP;
@@ -483,10 +489,21 @@ export const actions: Actions = {
     return { success: true, action: 'logSubmission' };
   },
 
-  removeSubmission: async ({ request, locals }) => {
+  removeSubmission: async ({ request, locals, params }) => {
     const formData = await request.formData();
     const parsed = removeSubmissionSchema.safeParse({ id: formData.get('id') });
     if (!parsed.success) return fail(400, { action: 'removeSubmission', errors: parsed.error.flatten().fieldErrors });
+    // Verify submission belongs to this node — prevents cross-node deletion via crafted POST
+    let subNode: string;
+    try {
+      const sub = await locals.pb.collection('submissions').getOne(parsed.data.id, { fields: 'id,node' });
+      subNode = (sub as { node: string }).node;
+    } catch {
+      return fail(400, { action: 'removeSubmission', errors: { _global: ['Submission not found.'] } });
+    }
+    if (subNode !== params.id) {
+      return fail(400, { action: 'removeSubmission', errors: { _global: ['Submission does not belong to this node.'] } });
+    }
     try {
       await locals.pb.collection('submissions').delete(parsed.data.id);
     } catch {
@@ -511,6 +528,11 @@ export const actions: Actions = {
       is_rp: formData.get('is_rp') || undefined
     });
     if (!parsed.success) return fail(400, { action: 'rollInstability', errors: parsed.error.flatten().fieldErrors });
+    // Guard: only allow roll when roll_due is true on the node
+    const nodeForRoll = await locals.pb.collection('nodes').getOne(params.id, { fields: 'id,roll_due' });
+    if (!(nodeForRoll as { roll_due?: boolean }).roll_due) {
+      return fail(400, { action: 'rollInstability', errors: { _global: ['No instability roll is currently due for this node.'] } });
+    }
     let rollId = '';
     try {
       const rollRecord = await locals.pb.collection('instability_rolls').create({
@@ -537,6 +559,10 @@ export const actions: Actions = {
     if (!parsed.success) return fail(400, { action: 'resolveEvent', errors: parsed.error.flatten().fieldErrors });
     try {
       const roll = await locals.pb.collection('instability_rolls').getOne(parsed.data.roll_id);
+      // Verify roll belongs to this node — prevents resolving a roll from a different node page
+      if ((roll as { node?: string }).node !== params.id) {
+        return fail(400, { action: 'resolveEvent', errors: { _global: ['Roll does not belong to this node.'] } });
+      }
       await locals.pb.collection('instability_rolls').update(parsed.data.roll_id, {
         resolved: true,
         resolved_action: parsed.data.resolved_action,
@@ -551,13 +577,50 @@ export const actions: Actions = {
           instability: Math.min(5, cur + add),
           roll_due: false
         });
+      } else if (parsed.data.resolved_action === 'log_sp_debt') {
+        const spCost = (roll as { sp_cost?: number }).sp_cost ?? 0;
+        if (spCost > 0) {
+          const submittedBy = (locals.pb.authStore.record as { id?: string } | null)?.id;
+          await locals.pb.collection('submissions').create({
+            node: params.id,
+            item: '',
+            item_name: `Event SP Debt — ${(roll as { event_name?: string }).event_name ?? 'Event'}`,
+            category: 'special',
+            qty: 1,
+            sp_value: spCost,
+            submission_type: 'upkeep',
+            staff_note: `Auto-logged from instability event`,
+            submitted_by: submittedBy ?? ''
+          }).catch(() => null);
+        }
+        await locals.pb.collection('nodes').update(params.id, { roll_due: false });
       } else {
-        // log_sp_debt, mark_output_penalty, mark_rp_handled, dismiss → just clear roll_due
+        // mark_output_penalty, mark_rp_handled, dismiss → just clear roll_due
         await locals.pb.collection('nodes').update(params.id, { roll_due: false });
       }
     } catch {
       return fail(500, { action: 'resolveEvent', errors: { _global: ['Failed to resolve event.'] } });
     }
     return { success: true, action: 'resolveEvent' };
+  },
+
+  confirmCycle: async ({ locals, params }) => {
+    try {
+      const submissions = await locals.pb.collection('submissions').getFullList({
+        filter: `node = "${params.id}"`,
+        fields: 'sp_value'
+      });
+      const totalSP = (submissions as { sp_value: number }[]).reduce((s, r) => s + r.sp_value, 0);
+      const actor = (locals.pb.authStore.record as { username?: string } | null)?.username ?? '';
+      await locals.pb.collection('server_log').create({
+        event_type: 'cycle_confirmed',
+        description: `Upkeep cycle confirmed — ${totalSP} SP logged this cycle`,
+        actor,
+        related_node: params.id
+      });
+    } catch {
+      return fail(500, { action: 'confirmCycle', errors: { _global: ['Failed to confirm cycle.'] } });
+    }
+    return { success: true, action: 'confirmCycle' };
   }
 };
