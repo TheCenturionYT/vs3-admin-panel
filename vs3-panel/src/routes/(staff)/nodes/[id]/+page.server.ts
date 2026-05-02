@@ -1,6 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { z } from 'zod';
 import type { Actions, PageServerLoad } from './$types';
+import { calcUpkeep } from '$lib/upkeep';
 
 const NODE_TYPES = [
   'Farm', 'Ranch', 'Orchard', 'Mine', 'Quarry', 'Clay Pit', 'Forest',
@@ -8,6 +9,32 @@ const NODE_TYPES = [
   'Trade Post', 'Military Node', 'Harbor/River Landing'
 ] as const;
 
+// === Phase 3 Cost Constants ===
+// Repair costs from CLAUDE.md §VIII values (authoritative): T1=50, T2=100, T3=200, T4=300
+const REPAIR_SP: Record<number, number> = { 1: 50, 2: 100, 3: 200, 4: 300 };
+// Upgrade costs from v1 code + CONTEXT.md T4 decision: T1→T2=60, T2→T3=140, T3→T4=500
+const UPGRADE_SP: Record<number, number> = { 1: 60, 2: 140, 3: 500 };
+const INSTAB_REDUCTION_SP = 40;
+
+function checkCaps(
+  existing: Array<{ category: string; sp_value: number }>,
+  newCategory: string,
+  newSpValue: number,
+  effectiveUpkeep: number
+): { ok: boolean; rrSP: number; cSP: number; rrPct: number; cPct: number } {
+  if (!effectiveUpkeep) return { ok: true, rrSP: 0, cSP: 0, rrPct: 0, cPct: 0 };
+  const all = [...existing, { category: newCategory, sp_value: newSpValue }];
+  const rrSP = all.filter(s => s.category === 'Raw Renewable').reduce((sum, s) => sum + s.sp_value, 0);
+  const cSP  = all.filter(s => s.category === 'Currency').reduce((sum, s) => sum + s.sp_value, 0);
+  return {
+    ok: (rrSP / effectiveUpkeep * 100) <= 40 && (cSP / effectiveUpkeep * 100) <= 40,
+    rrSP, cSP,
+    rrPct: Math.round(rrSP / effectiveUpkeep * 100),
+    cPct: Math.round(cSP / effectiveUpkeep * 100)
+  };
+}
+
+// === Phase 2 Schemas (unchanged) ===
 const editNodeSchema = z.object({
   name: z.string().min(1, 'Name is required.'),
   type: z.enum(NODE_TYPES, { message: 'Invalid node type.' }),
@@ -31,6 +58,36 @@ const deleteNodeSchema = z.object({
   id: z.string().min(1)
 });
 
+// === Phase 3 Schemas ===
+const logSubmissionSchema = z.object({
+  submission_type: z.enum(['upkeep', 'instability_reduction', 'repair', 'upgrade']),
+  item: z.string().optional(),
+  qty: z.coerce.number().int().min(1).optional(),
+  staff_note: z.string().max(200).optional()
+});
+
+const removeSubmissionSchema = z.object({ id: z.string().min(1) });
+
+const rollInstabilitySchema = z.object({
+  roll: z.coerce.number().int().min(1).max(100),
+  threshold: z.coerce.number().int().min(0).max(100),
+  triggered: z.coerce.boolean(),
+  event_name: z.string().optional(),
+  event_desc: z.string().optional(),
+  event_effect: z.string().optional(),
+  sp_cost: z.coerce.number().optional(),
+  instab_add: z.coerce.number().optional(),
+  output_penalty: z.coerce.number().optional(),
+  is_choice: z.coerce.boolean().optional(),
+  is_rp: z.coerce.boolean().optional()
+});
+
+const resolveEventSchema = z.object({
+  roll_id: z.string().min(1),
+  resolved_action: z.enum(['apply_instability','log_sp_debt','mark_output_penalty','mark_rp_handled','dismiss']),
+  staff_note: z.string().max(200).optional()
+});
+
 export const load: PageServerLoad = async ({ locals, params }) => {
   // Fetch the node with its owner
   let node: Record<string, unknown>;
@@ -42,8 +99,19 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
   const ownerId = node.owner as string | null;
 
-  // Parallel fetch: ownership history, node log, all factions, owner's nodes, owner's active wars
-  const [ownershipHistory, nodeLog, factions, ownerNodes, activeWars] = await Promise.all([
+  // Parallel fetch: ownership history, node log, all factions, owner's nodes, owner's active wars,
+  // Phase 3: current submissions, submission history, instability rolls, sp_catalogue
+  const [
+    ownershipHistory,
+    nodeLog,
+    factions,
+    ownerNodes,
+    activeWars,
+    currentSubmissions,
+    cycleHistory,
+    instabilityRolls,
+    spCatalogue
+  ] = await Promise.all([
     locals.pb.collection('node_ownership_history').getFullList({
       filter: `node = "${params.id}"`,
       sort: '-transfer_date',
@@ -72,17 +140,53 @@ export const load: PageServerLoad = async ({ locals, params }) => {
           filter: `(faction_a = "${ownerId}" || faction_b = "${ownerId}") && status = "active"`,
           fields: 'id'
         }).catch(() => [])
-      : Promise.resolve([])
+      : Promise.resolve([]),
+
+    // Phase 3: current cycle submissions for this node
+    locals.pb.collection('submissions').getFullList({
+      filter: `node = "${params.id}"`,
+      sort: '-created',
+      fields: 'id,item_name,category,qty,sp_value,submission_type,staff_note,submitted_by'
+    }).catch(() => []),
+
+    // Phase 3: archived cycle history for this node
+    locals.pb.collection('submission_history').getFullList({
+      filter: `node = "${params.id}"`,
+      sort: '-deadline_ts'
+    }).catch(() => []),
+
+    // Phase 3: instability roll log for this node
+    locals.pb.collection('instability_rolls').getFullList({
+      filter: `node = "${params.id}"`,
+      sort: '-created'
+    }).catch(() => []),
+
+    // Phase 3: SP catalogue items for submission form
+    locals.pb.collection('sp_catalogue').getFullList({
+      sort: 'category,name',
+      fields: 'id,name,category,sp_value'
+    }).catch(() => [])
   ]);
 
   const ownerFaction = factions.find((f: Record<string, unknown>) => f.id === ownerId) ?? null;
+
+  // Effective upkeep — never stored, always computed at read time (CLAUDE.md constraint)
+  const effectiveUpkeep = calcUpkeep(
+    (node.base_upkeep as number) ?? 0,
+    (ownerNodes as unknown[]).length,
+    (activeWars as unknown[]).length,
+    (ownerFaction as { type?: 'PvP' | 'PvE' } | null)?.type ?? 'PvE',
+    !ownerId
+  );
+
+  const tier = (node.tier as number) ?? 1;
 
   return {
     node: {
       id: node.id as string,
       name: node.name as string,
       type: node.type as string,
-      tier: node.tier as number,
+      tier,
       ownerId: node.owner as string | null,
       ownerName: (node.expand as Record<string, unknown> | undefined)?.owner
         ? ((node.expand as Record<string, Record<string, unknown>>).owner.name as string)
@@ -90,7 +194,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
       ownerColor: (node.expand as Record<string, unknown> | undefined)?.owner
         ? ((node.expand as Record<string, Record<string, unknown>>).owner.color as string)
         : null,
-      ownerType: ownerFaction ? (ownerFaction.type as 'PvP' | 'PvE') : null,
+      ownerType: ownerFaction ? (ownerFaction as { type: 'PvP' | 'PvE' }).type : null,
       base_upkeep: (node.base_upkeep as number) ?? 0,
       instability: (node.instability as number) ?? 0,
       has_road: (node.has_road as boolean) ?? false,
@@ -98,9 +202,9 @@ export const load: PageServerLoad = async ({ locals, params }) => {
       notes: (node.notes as string) ?? '',
       roll_due: (node.roll_due as boolean) ?? false
     },
-    ownerNodeCount: ownerNodes.length,
-    ownerWarCount: activeWars.length,
-    ownershipHistory: ownershipHistory.map((h: Record<string, unknown>) => {
+    ownerNodeCount: (ownerNodes as unknown[]).length,
+    ownerWarCount: (activeWars as unknown[]).length,
+    ownershipHistory: (ownershipHistory as Record<string, unknown>[]).map((h: Record<string, unknown>) => {
       const exp = h.expand as Record<string, Record<string, unknown>> | undefined;
       return {
         id: h.id as string,
@@ -113,23 +217,62 @@ export const load: PageServerLoad = async ({ locals, params }) => {
         staff_note: h.staff_note as string ?? ''
       };
     }),
-    nodeLog: (nodeLog as { items: Record<string, unknown>[] }).items.map((e: Record<string, unknown>) => ({
+    nodeLog: ((nodeLog as { items: Record<string, unknown>[] }).items).map((e: Record<string, unknown>) => ({
       id: e.id as string,
       created: e.created as string,
       event_type: e.event_type as string,
       description: e.description as string,
       actor: e.actor as string ?? ''
     })),
-    factions: factions.map((f: Record<string, unknown>) => ({
+    factions: (factions as Record<string, unknown>[]).map((f: Record<string, unknown>) => ({
       id: f.id as string,
       name: f.name as string,
       type: f.type as 'PvP' | 'PvE',
       color: f.color as string
+    })),
+    // Phase 3 data
+    effectiveUpkeep,
+    repairCost: REPAIR_SP[tier] ?? 0,
+    upgradeCost: UPGRADE_SP[tier] ?? 0,
+    currentSubmissions: (currentSubmissions as Record<string, unknown>[]).map((s: Record<string, unknown>) => ({
+      id: s.id as string,
+      item_name: s.item_name as string,
+      category: s.category as string,
+      qty: s.qty as number,
+      sp_value: s.sp_value as number,
+      submission_type: s.submission_type as string,
+      staff_note: s.staff_note as string ?? ''
+    })),
+    cycleHistory: (cycleHistory as Record<string, unknown>[]).map((h: Record<string, unknown>) => ({
+      id: h.id as string,
+      deadline_ts: h.deadline_ts as string,
+      paid_sp: h.paid_sp as number,
+      required_sp: h.required_sp as number,
+      outcome: h.outcome as string,
+      instab_delta: h.instab_delta as number,
+      snapshot: h.snapshot as unknown
+    })),
+    instabilityRolls: (instabilityRolls as Record<string, unknown>[]).map((r: Record<string, unknown>) => ({
+      id: r.id as string,
+      created: r.created as string,
+      roll: r.roll as number,
+      threshold: r.threshold as number,
+      triggered: r.triggered as boolean,
+      event_name: r.event_name as string ?? '',
+      resolved: r.resolved as boolean,
+      resolved_action: r.resolved_action as string ?? ''
+    })),
+    spCatalogue: (spCatalogue as Record<string, unknown>[]).map((c: Record<string, unknown>) => ({
+      id: c.id as string,
+      name: c.name as string,
+      category: c.category as string,
+      sp_value: c.sp_value as number
     }))
   };
 };
 
 export const actions: Actions = {
+  // === Phase 2 Actions (preserved unchanged) ===
   editNode: async ({ request, locals, params }) => {
     const data = await request.formData();
 
@@ -245,5 +388,174 @@ export const actions: Actions = {
     }
 
     redirect(303, '/nodes');
+  },
+
+  // === Phase 3 Actions ===
+
+  logSubmission: async ({ request, locals, params }) => {
+    const formData = await request.formData();
+    const parsed = logSubmissionSchema.safeParse({
+      submission_type: formData.get('submission_type'),
+      item: formData.get('item') || undefined,
+      qty: formData.get('qty') || undefined,
+      staff_note: formData.get('staff_note') || undefined
+    });
+    if (!parsed.success) {
+      return fail(400, { action: 'logSubmission', errors: parsed.error.flatten().fieldErrors });
+    }
+    const { submission_type, item, qty, staff_note } = parsed.data;
+
+    // Resolve sp_value, item_name, category by submission_type
+    const node = await locals.pb.collection('nodes').getOne(params.id);
+    const tier = (node as { tier?: number }).tier ?? 1;
+    let sp_value = 0;
+    let item_name = '';
+    let category = '';
+
+    if (submission_type === 'upkeep') {
+      if (!item || !qty) return fail(400, { action: 'logSubmission', errors: { _global: ['Item and quantity are required for upkeep submissions.'] } });
+      const cat = await locals.pb.collection('sp_catalogue').getOne(item).catch(() => null);
+      if (!cat) return fail(400, { action: 'logSubmission', errors: { item: ['Item not found.'] } });
+      item_name = (cat as { name: string }).name;
+      category = (cat as { category: string }).category;
+      sp_value = (cat as { sp_value: number }).sp_value * qty;
+
+      // Cap check (server is authoritative — T-03-13 mitigation)
+      const existing = await locals.pb.collection('submissions').getFullList({
+        filter: `node = "${params.id}"`,
+        fields: 'category,sp_value'
+      });
+      // Recompute effective upkeep at write time (NEVER store — CLAUDE.md constraint)
+      const factionId = (node as { owner?: string }).owner ?? '';
+      const ownerFaction = factionId ? await locals.pb.collection('factions').getOne(factionId).catch(() => null) : null;
+      const ownerNodes = factionId ? await locals.pb.collection('nodes').getFullList({ filter: `owner = "${factionId}"`, fields: 'id' }) : [];
+      const ownerWars = factionId ? await locals.pb.collection('wars').getFullList({ filter: `(faction_a = "${factionId}" || faction_b = "${factionId}") && status = "active"`, fields: 'id' }) : [];
+      const eff = calcUpkeep(
+        (node as { base_upkeep: number }).base_upkeep,
+        ownerNodes.length,
+        ownerWars.length,
+        (ownerFaction as { type?: 'PvP' | 'PvE' } | null)?.type ?? 'PvE',
+        !factionId
+      );
+      const cap = checkCaps(existing as Array<{ category: string; sp_value: number }>, category, sp_value, eff);
+      if (!cap.ok) {
+        return fail(400, { action: 'logSubmission', errors: { _global: [`This submission exceeds the 40% cap. Raw Renewable: ${cap.rrPct}%, Currency: ${cap.cPct}%.`] } });
+      }
+    } else if (submission_type === 'instability_reduction') {
+      item_name = 'Instability Reduction';
+      category = 'special';
+      sp_value = INSTAB_REDUCTION_SP;
+    } else if (submission_type === 'repair') {
+      if (!REPAIR_SP[tier]) return fail(400, { action: 'logSubmission', errors: { _global: [`No repair cost defined for tier ${tier}.`] } });
+      item_name = `Repair — T${tier}`;
+      category = 'special';
+      sp_value = REPAIR_SP[tier];
+    } else if (submission_type === 'upgrade') {
+      if (tier >= 4) return fail(400, { action: 'logSubmission', errors: { _global: ['Node is already at maximum tier (T4).'] } });
+      if (!UPGRADE_SP[tier]) return fail(400, { action: 'logSubmission', errors: { _global: [`No upgrade cost defined for tier ${tier}.`] } });
+      item_name = `Upgrade — T${tier} → T${tier + 1}`;
+      category = 'special';
+      sp_value = UPGRADE_SP[tier];
+    }
+
+    const submittedBy = (locals.pb.authStore.record as { id?: string } | null)?.id;
+
+    try {
+      await locals.pb.collection('submissions').create({
+        node: params.id,
+        item: submission_type === 'upkeep' ? item : '',
+        item_name, category, qty: qty ?? 1, sp_value,
+        submission_type, staff_note: staff_note ?? '',
+        submitted_by: submittedBy ?? ''
+      });
+      // Side effects for special types
+      if (submission_type === 'instability_reduction') {
+        const cur = (node as { instability?: number }).instability ?? 0;
+        if (cur > 0) {
+          await locals.pb.collection('nodes').update(params.id, { instability: cur - 1 });
+        }
+      } else if (submission_type === 'upgrade') {
+        await locals.pb.collection('nodes').update(params.id, { tier: tier + 1 });
+      }
+    } catch {
+      return fail(500, { action: 'logSubmission', errors: { _global: ['Failed to save submission.'] } });
+    }
+    return { success: true, action: 'logSubmission' };
+  },
+
+  removeSubmission: async ({ request, locals }) => {
+    const formData = await request.formData();
+    const parsed = removeSubmissionSchema.safeParse({ id: formData.get('id') });
+    if (!parsed.success) return fail(400, { action: 'removeSubmission', errors: parsed.error.flatten().fieldErrors });
+    try {
+      await locals.pb.collection('submissions').delete(parsed.data.id);
+    } catch {
+      return fail(500, { action: 'removeSubmission', errors: { _global: ['Failed to remove submission.'] } });
+    }
+    return { success: true, action: 'removeSubmission' };
+  },
+
+  rollInstability: async ({ request, locals, params }) => {
+    const formData = await request.formData();
+    const parsed = rollInstabilitySchema.safeParse({
+      roll: formData.get('roll'),
+      threshold: formData.get('threshold'),
+      triggered: formData.get('triggered'),
+      event_name: formData.get('event_name') || undefined,
+      event_desc: formData.get('event_desc') || undefined,
+      event_effect: formData.get('event_effect') || undefined,
+      sp_cost: formData.get('sp_cost') || undefined,
+      instab_add: formData.get('instab_add') || undefined,
+      output_penalty: formData.get('output_penalty') || undefined,
+      is_choice: formData.get('is_choice') || undefined,
+      is_rp: formData.get('is_rp') || undefined
+    });
+    if (!parsed.success) return fail(400, { action: 'rollInstability', errors: parsed.error.flatten().fieldErrors });
+    try {
+      await locals.pb.collection('instability_rolls').create({
+        node: params.id, ...parsed.data, resolved: !parsed.data.triggered
+      });
+      // If not triggered, immediately clear roll_due (no event to resolve)
+      if (!parsed.data.triggered) {
+        await locals.pb.collection('nodes').update(params.id, { roll_due: false });
+      }
+    } catch {
+      return fail(500, { action: 'rollInstability', errors: { _global: ['Failed to save roll.'] } });
+    }
+    return { success: true, action: 'rollInstability' };
+  },
+
+  resolveEvent: async ({ request, locals, params }) => {
+    const formData = await request.formData();
+    const parsed = resolveEventSchema.safeParse({
+      roll_id: formData.get('roll_id'),
+      resolved_action: formData.get('resolved_action'),
+      staff_note: formData.get('staff_note') || undefined
+    });
+    if (!parsed.success) return fail(400, { action: 'resolveEvent', errors: parsed.error.flatten().fieldErrors });
+    try {
+      const roll = await locals.pb.collection('instability_rolls').getOne(parsed.data.roll_id);
+      await locals.pb.collection('instability_rolls').update(parsed.data.roll_id, {
+        resolved: true,
+        resolved_action: parsed.data.resolved_action,
+        staff_note: parsed.data.staff_note ?? ''
+      });
+      // Side effects per action
+      if (parsed.data.resolved_action === 'apply_instability') {
+        const node = await locals.pb.collection('nodes').getOne(params.id);
+        const cur = (node as { instability?: number }).instability ?? 0;
+        const add = (roll as { instab_add?: number }).instab_add ?? 1;
+        await locals.pb.collection('nodes').update(params.id, {
+          instability: Math.min(5, cur + add),
+          roll_due: false
+        });
+      } else {
+        // log_sp_debt, mark_output_penalty, mark_rp_handled, dismiss → just clear roll_due
+        await locals.pb.collection('nodes').update(params.id, { roll_due: false });
+      }
+    } catch {
+      return fail(500, { action: 'resolveEvent', errors: { _global: ['Failed to resolve event.'] } });
+    }
+    return { success: true, action: 'resolveEvent' };
   }
 };
