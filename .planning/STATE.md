@@ -11,7 +11,7 @@
 
 **Stack:** PocketBase 0.22.x (backend/BaaS) + SvelteKit 2 / Svelte 5 (frontend) + shadcn-svelte (UI) + Chart.js 4 (charts). Deployment via Railway (primary) or Docker Compose (VPS path).
 
-**Current focus:** Phase 2 — Core Data & Wars
+**Current focus:** Phase 3 — Upkeep Engine & Automation
 
 ---
 
@@ -21,7 +21,7 @@
 |-------|-------|
 | Phase | 3 — Upkeep Engine |
 | Plan | Not yet planned |
-| Status | Ready to plan Phase 3 |
+| Status | Discuss complete — ready to plan |
 | Blocking issue | None |
 
 **Progress:**
@@ -62,20 +62,20 @@ Overall: 2 of 4 phases complete
 
 ### Open Questions (carry forward)
 
-1. **Scheduler implementation path** — Cron container in Docker Compose vs. external cron (Railway cron job / system cron on VPS) hitting PocketBase API webhook. Decide before Phase 3 scope is written.
-2. **PvE faction + war modifier edge case** — war modifier applies only to PvP factions. Verify scope in both handbook and v1.2.1 before porting formula.
-3. **T4 upgrade cost** — Handbook §IX says 500 SP; v1 code does not track this. Clarify with user before Phase 3 upgrade tracking.
+None.
 
 ### Resolved Questions
 
 - ~~Svelte 5 runes + shadcn-svelte compatibility~~ — shadcn-svelte 1.2.7 is Svelte 5 native (Tailwind v4, `@theme inline`). Resolved in 01-01.
 - ~~Railway vs Docker Compose primary path~~ — Railway is primary, Docker Compose is secondary. Resolved in 01-06.
 - ~~Head Admin at route AND rule level~~ — verified: collection rules + SvelteKit route guards both enforced. Verified in Phase 1.
+- ~~Scheduler implementation path~~ — `cronAdd()` in pb_hooks/scheduler.js with `"* * * * *"` tick; reads deadline_config collection to determine if deadline has passed. Resolved in Phase 3 discuss.
+- ~~PvE war modifier edge case~~ — `warMul=0` for PvE factions always. Implemented in upkeep.ts.
+- ~~T4 upgrade cost~~ — 500 SP (Handbook §IX). T1→T2=60, T2→T3=140 from v1. Resolved 2026-05-01.
 
 ### Todos
 
-- [ ] Read VS3_Panel_1_2_1.html for `calcUp()`, `checkCaps()`, `procDeadlines()`, `INSTAB_EVENTS` table before Phase 3 planning
-- [ ] Resolve open question 1 (scheduler path) before Phase 3 scope is written
+- [ ] Run `/gsd-plan-phase 3` — CONTEXT.md is ready at `.planning/phases/03-upkeep-engine/03-CONTEXT.md`
 
 ### Blockers
 
@@ -85,7 +85,7 @@ None currently.
 
 ## Session Continuity
 
-**To resume:** Run `/gsd-plan-phase 3` to plan Phase 3 — Upkeep Engine & Automation.
+**To resume:** Run `/gsd-plan-phase 3` — CONTEXT.md complete at `.planning/phases/03-upkeep-engine/03-CONTEXT.md`.
 **Files:** All planning artifacts live in `C:\Users\Kramer\Desktop\VS3\.planning\`.
 **Source references:** `VS3_Panel_1_2_1.html` (v1 logic — calcUp, checkCaps, procDeadlines, INSTAB_EVENTS), `VS3_Rules_Node_Handbook_v1.3.0.html` (game rules).
 **Last completed:** Phase 2 — Core Data & Wars (10/10 plans, 2026-05-01). All collections, CRUD pages, hooks, dashboard, export/import delivered.

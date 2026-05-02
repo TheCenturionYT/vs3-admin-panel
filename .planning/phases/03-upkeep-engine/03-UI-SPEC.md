@@ -1,7 +1,8 @@
 ---
 phase: 3
 slug: upkeep-engine-automation
-status: draft
+status: approved
+reviewed_at: 2026-05-01
 shadcn_initialized: true
 preset: "VS3 medieval gold palette — established Phase 1, unchanged"
 created: 2026-05-01
