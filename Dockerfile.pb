@@ -26,8 +26,6 @@ COPY pb_migrations/ /pb_migrations/
 
 # pb_data is a volume mount point — do NOT copy anything here
 # Data lives in the Railway Volume or Docker named volume
-VOLUME /pb_data
-
 EXPOSE 8090
 
 # Railway injects $PORT — use it so Railway's load balancer can reach PocketBase.
