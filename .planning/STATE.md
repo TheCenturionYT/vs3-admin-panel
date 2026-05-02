@@ -1,7 +1,7 @@
 # STATE — VS3 Admin Panel v2.0.0
 
 **Last updated:** 2026-05-02
-**Session type:** Phase 3 executing — gap closure plans complete
+**Session type:** Phase 4 planning next
 
 ---
 
@@ -11,7 +11,7 @@
 
 **Stack:** PocketBase 0.22.x (backend/BaaS) + SvelteKit 2 / Svelte 5 (frontend) + shadcn-svelte (UI) + Chart.js 4 (charts). Deployment via Railway (primary) or Docker Compose (VPS path).
 
-**Current focus:** Phase 3 — Upkeep Engine & Automation
+**Current focus:** Phase 4 — Player Portal
 
 ---
 
@@ -19,20 +19,20 @@
 
 | Field | Value |
 |-------|-------|
-| Phase | 3 — Upkeep Engine |
-| Plan | 6 plans in 4 waves |
-| Status | Ready to execute |
+| Phase | 4 — Player Portal |
+| Plan | TBD (planning next) |
+| Status | Phase 3 complete — Phase 4 planning |
 | Blocking issue | None |
 
 **Progress:**
 ```
 [Phase 1: Foundation        ] [x] Complete — 6/6 plans complete
 [Phase 2: Core Data & Wars  ] [x] Complete — 10/10 plans complete
-[Phase 3: Upkeep Engine     ] [ ] Planned — 6/6 plans ready, 0 executed
-[Phase 4: Player Portal     ] [ ] Not started
+[Phase 3: Upkeep Engine     ] [x] Complete — 8/8 plans complete (2026-05-02)
+[Phase 4: Player Portal     ] [ ] Planning
 ```
 
-Overall: 2 of 4 phases complete
+Overall: 3 of 4 phases complete
 
 ---
 
@@ -42,8 +42,8 @@ Overall: 2 of 4 phases complete
 |--------|-------|
 | Requirements mapped | 56/56 |
 | Phases defined | 4 |
-| Plans created | 22 (Phase 1: 6, Phase 2: 10, Phase 3: 6) |
-| Plans complete | 16 (01-01 through 01-06, 02-01 through 02-10) — Phases 1 & 2 done |
+| Plans created | 24 (Phase 1: 6, Phase 2: 10, Phase 3: 8) |
+| Plans complete | 24 (01-01 through 01-06, 02-01 through 02-10, 03-01 through 03-08) — Phases 1, 2 & 3 done |
 
 ---
 
@@ -75,7 +75,7 @@ None.
 
 ### Todos
 
-- [ ] Run `/gsd-execute-phase 3` — 6 plans ready at `.planning/phases/03-upkeep-engine/`
+- [ ] Plan Phase 4: Player Portal — 4 requirements (PORTAL-01 through PORTAL-04)
 
 ### Blockers
 
@@ -85,7 +85,7 @@ None currently.
 
 ## Session Continuity
 
-**To resume:** Run `/gsd-execute-phase 3` — 6 plans ready at `.planning/phases/03-upkeep-engine/`.
+**To resume:** Run `/gsd-plan-phase 4` to plan the Player Portal phase.
 **Files:** All planning artifacts live in `C:\Users\Kramer\Desktop\VS3\.planning\`.
 **Source references:** `VS3_Panel_1_2_1.html` (v1 logic — calcUp, checkCaps, procDeadlines, INSTAB_EVENTS), `VS3_Rules_Node_Handbook_v1.3.0.html` (game rules).
-**Last completed:** Phase 3 Plan 08 — Data-correctness gap closure (CR-03/04/05, WR-07, IN-02/03). 2026-05-02.
+**Last completed:** Phase 3 complete (8/8 plans, including gap closure 03-07/03-08). 2026-05-02.

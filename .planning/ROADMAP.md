@@ -12,7 +12,7 @@
 
 - [x] **Phase 1: Foundation** — PocketBase schema, auth system, staff login, role enforcement, and deployment scaffold ✓ 2026-05-01
 - [ ] **Phase 2: Core Data & Wars** — Faction/Node/War/Diplomacy CRUD, ownership timeline, logs, and dashboard baseline
-- [ ] **Phase 3: Upkeep Engine & Automation** — SP submissions, cap enforcement, deadline processor, instability system, and metrics
+- [x] **Phase 3: Upkeep Engine & Automation** — SP submissions, cap enforcement, deadline processor, instability system, and metrics ✓ 2026-05-02
 - [ ] **Phase 4: Player Portal** — Faction-scoped read-only portal with war/alliance board
 
 ---
@@ -103,8 +103,8 @@
 - [x] 03-06-PLAN.md — Metrics page (SP totals + weekly chart) + sidebar Metrics link
 
 **Gap Closure Wave** *(parallel — both address code review findings independently)*
-- [ ] 03-07-PLAN.md — Security guards: process-deadlines role check, per-node server_log, submission ownership checks
-- [ ] 03-08-PLAN.md — Data integrity: migration rollback, importData fail-fast, dashboard cap preview, snapshot serialization
+- [x] 03-07-PLAN.md — Security guards: process-deadlines role check, per-node server_log, submission ownership checks
+- [x] 03-08-PLAN.md — Data integrity: migration rollback, importData fail-fast, dashboard cap preview, snapshot serialization
 **UI hint**: yes
 
 ### Phase 4: Player Portal
@@ -125,5 +125,5 @@
 |-------|----------------|--------|-----------|
 | 1. Foundation | 6/6 | Complete | 2026-05-01 |
 | 2. Core Data & Wars | 0/10 | Planned | - |
-| 3. Upkeep Engine & Automation | 6/8 | In Progress (gap closure) | - |
+| 3. Upkeep Engine & Automation | 8/8 | Complete | 2026-05-02 |
 | 4. Player Portal | 0/? | Not started | - |
