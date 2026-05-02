@@ -114,7 +114,14 @@
 **Success Criteria** (what must be TRUE):
   1. A logged-in faction member sees their own faction's nodes with current instability level, upkeep status, and cycle payment progress — and cannot see any other faction's node data even by crafting a direct API request
   2. A faction member can view the global war and alliance board showing all active wars (parties, casus belli) and active alliances (type, parties) — all other admin write actions are absent from the portal UI
-**Plans**: TBD
+**Plans**: 2 plans in 2 waves
+
+**Wave 1**
+- [ ] 04-01-PLAN.md — Portal shell layout (+layout.svelte topbar) + data load function (+page.server.ts, member-scoped queries, calcUpkeep)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 04-02-PLAN.md — Portal page UI: My Faction Nodes cards + War & Alliance Board two-column section
+
 **UI hint**: yes
 
 ---
@@ -126,4 +133,4 @@
 | 1. Foundation | 6/6 | Complete | 2026-05-01 |
 | 2. Core Data & Wars | 0/10 | Planned | - |
 | 3. Upkeep Engine & Automation | 8/8 | Complete | 2026-05-02 |
-| 4. Player Portal | 0/? | Not started | - |
+| 4. Player Portal | 0/2 | Planned | - |
