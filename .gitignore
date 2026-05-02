@@ -1,0 +1,27 @@
+# PocketBase data — never commit the database
+pb_data/
+
+# PocketBase binary — download fresh on each platform
+pocketbase.exe
+pocketbase
+
+# SvelteKit build output
+vs3-panel/.svelte-kit/
+vs3-panel/build/
+vs3-panel/node_modules/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Windows
+desktop.ini
+Thumbs.db
+
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+*.swp

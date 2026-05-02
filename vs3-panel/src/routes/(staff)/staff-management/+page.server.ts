@@ -242,5 +242,21 @@ export const actions: Actions = {
       return fail(500, { action: 'reactivateAccount', error: 'Something went wrong. Please try again.' });
     }
     return { success: true, action: 'reactivateAccount' };
+  },
+
+  deleteAccount: async ({ request, locals }) => {
+    const role = (locals.pb.authStore.record as { role?: string } | null)?.role;
+    if (role !== 'head_admin') {
+      return fail(403, { action: 'deleteAccount', error: 'Head Admin access required.' });
+    }
+    const data = await request.formData();
+    const parsed = toggleSchema.safeParse({ id: data.get('id'), collection: data.get('collection') });
+    if (!parsed.success) return fail(400, { action: 'deleteAccount', error: 'Invalid request.' });
+    try {
+      await locals.pb.collection(parsed.data.collection).delete(parsed.data.id);
+    } catch {
+      return fail(500, { action: 'deleteAccount', error: 'Something went wrong. Please try again.' });
+    }
+    return { success: true, action: 'deleteAccount' };
   }
 };

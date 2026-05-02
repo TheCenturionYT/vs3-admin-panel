@@ -2,7 +2,7 @@ import { fail } from '@sveltejs/kit';
 import { z } from 'zod';
 import type { Actions, PageServerLoad } from './$types';
 
-export const NODE_TYPES = [
+const NODE_TYPES = [
   'Farm', 'Ranch', 'Orchard', 'Mine', 'Quarry', 'Clay Pit', 'Forest',
   'Lumber Mill', 'Resin Farm', 'Peat Bog', 'Salt Works', 'Workshop',
   'Trade Post', 'Military Node', 'Harbor/River Landing'

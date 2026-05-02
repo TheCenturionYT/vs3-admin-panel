@@ -1,4 +1,4 @@
-import { fail, redirect } from '@sveltejs/kit';
+import { fail, redirect, isRedirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
 // Redirect authenticated users away from the login page
@@ -34,14 +34,16 @@ export const actions: Actions = {
     try {
       await locals.pb.collection('staff').authWithPassword(username, password);
       redirect(303, '/dashboard');
-    } catch {
+    } catch (e) {
+      if (isRedirect(e)) throw e;
       // Staff login failed — try members collection (portal users)
     }
 
     try {
       await locals.pb.collection('members').authWithPassword(username, password);
       redirect(303, '/portal');
-    } catch {
+    } catch (e) {
+      if (isRedirect(e)) throw e;
       // Both collections failed
     }
 

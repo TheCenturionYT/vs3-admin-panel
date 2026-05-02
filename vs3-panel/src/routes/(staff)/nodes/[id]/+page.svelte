@@ -103,6 +103,12 @@
     (data.currentSubmissions ?? []).reduce((sum: number, s: { sp_value: number }) => sum + s.sp_value, 0)
   );
 
+  const cycleProgressPct = $derived(
+    effectiveUpkeep > 0 ? Math.min(100, Math.round(cycleTotalSP / effectiveUpkeep * 100)) : 0
+  );
+  const cycleFullyPaid = $derived(effectiveUpkeep > 0 && cycleTotalSP >= effectiveUpkeep);
+  let confirmingCycle = $state(false);
+
   // === Submission modal label ===
   const submitLabel = $derived(
     submissionType === 'repair' ? 'Log Repair'
@@ -131,6 +137,9 @@
       }
       if (form.action === 'resolveEvent') {
         lastRoll = null;
+      }
+      if (form.action === 'confirmCycle') {
+        // no extra state to clear
       }
     }
   });
@@ -415,20 +424,50 @@
             {/each}
           </tbody>
         </table>
+        <!-- Progress bar -->
+        {#if effectiveUpkeep > 0}
+          <div class="mb-3">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-[11px] text-muted-foreground">Upkeep progress</span>
+              <span class="text-[11px] font-semibold" style="color: {cycleFullyPaid ? '#90cc90' : cycleProgressPct >= 50 ? '#d4c060' : '#e07840'};">
+                {cycleTotalSP} / {effectiveUpkeep} SP ({cycleProgressPct}%)
+              </span>
+            </div>
+            <div class="relative w-full rounded h-2 overflow-hidden" style="background: #2c2518;">
+              <div class="h-full rounded transition-all" style="width: {cycleProgressPct}%; background: {cycleFullyPaid ? '#3d6b3d' : cycleProgressPct >= 50 ? '#8a7a30' : '#8b4020'};"></div>
+            </div>
+            {#if cycleFullyPaid}
+              <p class="text-[11px] mt-1 font-semibold" style="color: #90cc90;">✓ Upkeep requirement met for this cycle</p>
+            {/if}
+          </div>
+        {/if}
         <div class="flex items-center justify-between mt-2">
           <span class="text-[14px] text-muted-foreground">
             Total SP this cycle: <span class="font-semibold" style="color: #c4a45a;">{cycleTotalSP} SP</span>
           </span>
-          <button
-            type="button"
-            onclick={() => { submissionType = 'upkeep'; showSubmissionModal = true; }}
-            class="px-3 py-1.5 rounded-md text-[13px] border transition-colors"
-            style="border-color: #c4a45a; color: #c4a45a;"
-            onmouseover={(e) => (e.currentTarget as HTMLButtonElement).style.background = 'rgba(196,164,90,0.12)'}
-            onmouseout={(e) => (e.currentTarget as HTMLButtonElement).style.background = 'transparent'}
-          >
-            Log Submission
-          </button>
+          <div class="flex items-center gap-2">
+            {#if cycleFullyPaid}
+              <form method="POST" action="?/confirmCycle"
+                use:enhance={() => { confirmingCycle = true; return async ({ update }) => { await update(); confirmingCycle = false; }; }}>
+                <button type="submit" disabled={confirmingCycle}
+                  class="flex items-center gap-2 px-3 py-1.5 rounded-md text-[13px] border transition-colors disabled:opacity-50"
+                  style="border-color: #3d6b3d; color: #90cc90; background: rgba(61,107,61,0.08);">
+                  {#if confirmingCycle}<Loader2 class="w-3 h-3 animate-spin" />{/if}
+                  Confirm Week Paid
+                </button>
+              </form>
+            {/if}
+            <button
+              type="button"
+              onclick={() => { submissionType = 'upkeep'; showSubmissionModal = true; }}
+              class="px-3 py-1.5 rounded-md text-[13px] border transition-colors"
+              style="border-color: #c4a45a; color: #c4a45a;"
+              onmouseover={(e) => (e.currentTarget as HTMLButtonElement).style.background = 'rgba(196,164,90,0.12)'}
+              onmouseout={(e) => (e.currentTarget as HTMLButtonElement).style.background = 'transparent'}
+            >
+              Log Submission
+            </button>
+          </div>
         </div>
       {/if}
     </div>
@@ -649,46 +688,177 @@
       </div>
     {/if}
 
-    <!-- Roll history outside instability check (when roll_due = false but history exists) -->
-    {#if !data.node?.roll_due && (data.instabilityRolls ?? []).length > 0}
+    <!-- Manual instability roll + roll history (when roll_due = false) -->
+    {#if !data.node?.roll_due}
       <div class="bg-card border border-border rounded-md p-4 mb-4">
-        <button
-          type="button"
-          onclick={() => showRollHistory = !showRollHistory}
-          class="text-[11px] font-semibold uppercase text-muted-foreground hover:text-foreground transition-colors"
-          style="letter-spacing: 0.07em;"
-        >
-          {showRollHistory ? '▾' : '▸'} INSTABILITY ROLL HISTORY ({data.instabilityRolls.length})
-        </button>
-        {#if showRollHistory}
-          <table class="w-full text-[14px] mt-3">
-            <thead>
-              <tr style="border-bottom: 1px solid #3d3426;">
-                <th class="text-left px-0 py-1.5 text-[11px] font-semibold uppercase text-muted-foreground" style="letter-spacing: 0.06em;">Date</th>
-                <th class="text-right px-3 py-1.5 text-[11px] font-semibold uppercase text-muted-foreground" style="letter-spacing: 0.06em;">Roll</th>
-                <th class="text-right px-3 py-1.5 text-[11px] font-semibold uppercase text-muted-foreground" style="letter-spacing: 0.06em;">Threshold</th>
-                <th class="text-left px-3 py-1.5 text-[11px] font-semibold uppercase text-muted-foreground" style="letter-spacing: 0.06em;">Triggered</th>
-                <th class="text-left px-3 py-1.5 text-[11px] font-semibold uppercase text-muted-foreground" style="letter-spacing: 0.06em;">Event</th>
-              </tr>
-            </thead>
-            <tbody>
-              {#each (data.instabilityRolls ?? []) as r (r.id)}
-                <tr style="border-bottom: 1px solid rgba(196,164,90,0.06);">
-                  <td class="px-0 py-2 text-[11px] text-muted-foreground whitespace-nowrap">{formatDate(r.created)}</td>
-                  <td class="px-3 py-2 text-[14px] text-foreground text-right">{r.roll}</td>
-                  <td class="px-3 py-2 text-[14px] text-muted-foreground text-right">{r.threshold}</td>
-                  <td class="px-3 py-2">
-                    {#if r.triggered}
-                      <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold" style="background: rgba(200,100,40,0.2); border: 1px solid rgba(200,100,40,0.3); color: #e07840;">Yes</span>
-                    {:else}
-                      <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold" style="background: rgba(61,107,61,0.2); border: 1px solid rgba(61,107,61,0.3); color: #90cc90;">No</span>
-                    {/if}
-                  </td>
-                  <td class="px-3 py-2 text-[14px] text-muted-foreground">{r.event_name || '—'}</td>
+        <div class="flex items-center justify-between mb-3">
+          <div class="text-[11px] font-semibold uppercase text-muted-foreground" style="letter-spacing: 0.07em;">
+            MANUAL INSTABILITY ROLL
+          </div>
+          {#if !lastRoll}
+            <button
+              type="button"
+              onclick={rollD100}
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] border transition-colors"
+              style="border-color: #c4a45a; color: #c4a45a;"
+              onmouseover={(e) => (e.currentTarget as HTMLButtonElement).style.background = 'rgba(196,164,90,0.12)'}
+              onmouseout={(e) => (e.currentTarget as HTMLButtonElement).style.background = 'transparent'}
+            >
+              <Dice5 class="w-4 h-4" />
+              Roll d100
+            </button>
+          {/if}
+        </div>
+
+        {#if lastRoll}
+          <!-- Reuse same dice display + save/resolve form from roll_due section -->
+          <div class="flex flex-col items-center mb-4">
+            <div class="w-12 h-12 rounded flex items-center justify-center mb-2"
+                 style="background: #2c2518; border: 1px solid #3d3426;">
+              <span class="text-[22px] font-semibold text-foreground">{lastRoll.roll}</span>
+            </div>
+            {#if !lastRoll.triggered}
+              <p class="text-[14px]" style="color: #90cc90;">No event triggered ({lastRoll.roll} &gt; {lastRoll.threshold})</p>
+            {:else}
+              <p class="text-[14px] font-semibold" style="color: #e07840;">Event triggered ({lastRoll.roll} ≤ {lastRoll.threshold})</p>
+            {/if}
+          </div>
+
+          {#if !lastRoll.savedRollId}
+            <form method="POST" action="?/rollInstability"
+              use:enhance={() => {
+                rolling = true;
+                return async ({ result, update }) => {
+                  if (result.type === 'success' && result.data && typeof result.data === 'object' && 'rollId' in result.data) {
+                    if (lastRoll) lastRoll = { ...lastRoll, savedRollId: result.data.rollId as string };
+                    if (!lastRoll?.triggered) await update();
+                  } else {
+                    await update();
+                  }
+                  rolling = false;
+                };
+              }}>
+              <input type="hidden" name="roll" value={lastRoll.roll} />
+              <input type="hidden" name="threshold" value={lastRoll.threshold} />
+              <input type="hidden" name="triggered" value={String(lastRoll.triggered)} />
+              {#if lastRoll.event}
+                <input type="hidden" name="event_name" value={lastRoll.event.name} />
+                <input type="hidden" name="event_desc" value={lastRoll.event.desc} />
+                <input type="hidden" name="event_effect" value={lastRoll.event.effect} />
+                {#if lastRoll.event.spCost !== undefined}<input type="hidden" name="sp_cost" value={lastRoll.event.spCost} />{/if}
+                {#if lastRoll.event.instabAdd !== undefined}<input type="hidden" name="instab_add" value={lastRoll.event.instabAdd} />{/if}
+                {#if lastRoll.event.outputPenalty !== undefined}<input type="hidden" name="output_penalty" value={lastRoll.event.outputPenalty} />{/if}
+                {#if lastRoll.event.choice}<input type="hidden" name="is_choice" value="true" />{/if}
+                {#if lastRoll.event.rp}<input type="hidden" name="is_rp" value="true" />{/if}
+              {/if}
+              <div class="flex justify-center">
+                <button type="submit" disabled={rolling}
+                  class="flex items-center gap-2 px-4 py-2 rounded-md text-[14px] border transition-colors disabled:opacity-50"
+                  style="border-color: #c4a45a; color: #c4a45a;">
+                  {#if rolling}<Loader2 class="w-4 h-4 animate-spin" />{/if}
+                  {lastRoll.triggered ? 'Save Roll' : 'Save Roll & Clear'}
+                </button>
+              </div>
+            </form>
+          {/if}
+
+          {#if lastRoll.triggered && lastRoll.event && lastRoll.savedRollId}
+            {@const ev = lastRoll.event}
+            {@const rollId = lastRoll.savedRollId}
+            <div class="rounded-md p-4 mb-4" style="background: rgba(200,100,40,0.08); border: 1px solid rgba(200,100,40,0.2);">
+              <div class="text-[15px] font-semibold text-foreground mb-1">{ev.name}</div>
+              <div class="text-[14px] text-muted-foreground italic mb-2">{ev.desc}</div>
+              <div class="text-[14px] text-foreground mb-3">{ev.effect}</div>
+              <div class="flex flex-wrap gap-3 text-[11px] mb-3">
+                {#if ev.spCost !== undefined && ev.spCost > 0}<span class="text-muted-foreground">SP Cost: <span class="text-foreground">{ev.spCost} SP</span></span>{/if}
+                {#if ev.instabAdd !== undefined && ev.instabAdd > 0}<span class="text-muted-foreground">Instab: <span style="color: #ff7070;">+{ev.instabAdd}</span></span>{/if}
+                {#if ev.outputPenalty !== undefined && ev.outputPenalty > 0}<span class="text-muted-foreground">Output Penalty: <span style="color: #e07840;">{ev.outputPenalty}%</span></span>{/if}
+                {#if ev.choice}<span class="font-semibold" style="color: #d4c060;">Choice available</span>{/if}
+                {#if ev.rp}<span class="font-semibold" style="color: #88bbdd;">Requires RP resolution</span>{/if}
+              </div>
+              <div class="flex flex-wrap gap-2">
+                {#if ev.instabAdd !== undefined && ev.instabAdd > 0}
+                  <form method="POST" action="?/resolveEvent" use:enhance={() => { rolling = true; return async ({ update }) => { await update(); rolling = false; }; }}>
+                    <input type="hidden" name="roll_id" value={rollId} />
+                    <input type="hidden" name="resolved_action" value="apply_instability" />
+                    <button type="submit" disabled={rolling} class="px-3 py-1.5 rounded-md text-[13px] border transition-colors disabled:opacity-50" style="background: rgba(139,43,43,0.15); border-color: rgba(139,43,43,0.4); color: #ff9999;">Apply Instability (+{ev.instabAdd})</button>
+                  </form>
+                {/if}
+                {#if ev.spCost !== undefined && ev.spCost > 0}
+                  <form method="POST" action="?/resolveEvent" use:enhance={() => { rolling = true; return async ({ update }) => { await update(); rolling = false; }; }}>
+                    <input type="hidden" name="roll_id" value={rollId} />
+                    <input type="hidden" name="resolved_action" value="log_sp_debt" />
+                    <button type="submit" disabled={rolling} class="px-3 py-1.5 rounded-md text-[13px] border transition-colors disabled:opacity-50" style="border-color: #3d3426; color: #d4c5a0;">Log SP Debt ({ev.spCost} SP)</button>
+                  </form>
+                {/if}
+                {#if ev.outputPenalty !== undefined && ev.outputPenalty > 0}
+                  <form method="POST" action="?/resolveEvent" use:enhance={() => { rolling = true; return async ({ update }) => { await update(); rolling = false; }; }}>
+                    <input type="hidden" name="roll_id" value={rollId} />
+                    <input type="hidden" name="resolved_action" value="mark_output_penalty" />
+                    <button type="submit" disabled={rolling} class="px-3 py-1.5 rounded-md text-[13px] border transition-colors disabled:opacity-50" style="border-color: #3d3426; color: #d4c5a0;">Mark Output Penalty ({ev.outputPenalty}%)</button>
+                  </form>
+                {/if}
+                {#if ev.rp}
+                  <form method="POST" action="?/resolveEvent" use:enhance={() => { rolling = true; return async ({ update }) => { await update(); rolling = false; }; }}>
+                    <input type="hidden" name="roll_id" value={rollId} />
+                    <input type="hidden" name="resolved_action" value="mark_rp_handled" />
+                    <button type="submit" disabled={rolling} class="px-3 py-1.5 rounded-md text-[13px] border transition-colors disabled:opacity-50" style="border-color: #3d3426; color: #d4c5a0;">Mark RP Handled</button>
+                  </form>
+                {/if}
+                <form method="POST" action="?/resolveEvent" use:enhance={() => { rolling = true; return async ({ update }) => { await update(); rolling = false; }; }}>
+                  <input type="hidden" name="roll_id" value={rollId} />
+                  <input type="hidden" name="resolved_action" value="dismiss" />
+                  <button type="submit" disabled={rolling} class="px-3 py-1.5 rounded-md text-[13px] border transition-colors disabled:opacity-50" style="border-color: #3d3426; color: #d4c5a0;">Resolve / Dismiss</button>
+                </form>
+              </div>
+            </div>
+          {/if}
+        {/if}
+
+        {#if (data.instabilityRolls ?? []).length > 0}
+          <button type="button" onclick={() => showRollHistory = !showRollHistory}
+            class="text-[11px] font-semibold uppercase text-muted-foreground hover:text-foreground transition-colors"
+            style="letter-spacing: 0.07em;">
+            {showRollHistory ? '▾' : '▸'} INSTABILITY ROLL HISTORY ({data.instabilityRolls.length})
+          </button>
+          {#if showRollHistory}
+            <table class="w-full text-[14px] mt-3">
+              <thead>
+                <tr style="border-bottom: 1px solid #3d3426;">
+                  <th class="text-left px-0 py-1.5 text-[11px] font-semibold uppercase text-muted-foreground" style="letter-spacing: 0.06em;">Date</th>
+                  <th class="text-right px-3 py-1.5 text-[11px] font-semibold uppercase text-muted-foreground" style="letter-spacing: 0.06em;">Roll</th>
+                  <th class="text-right px-3 py-1.5 text-[11px] font-semibold uppercase text-muted-foreground" style="letter-spacing: 0.06em;">Threshold</th>
+                  <th class="text-left px-3 py-1.5 text-[11px] font-semibold uppercase text-muted-foreground" style="letter-spacing: 0.06em;">Triggered</th>
+                  <th class="text-left px-3 py-1.5 text-[11px] font-semibold uppercase text-muted-foreground" style="letter-spacing: 0.06em;">Event</th>
                 </tr>
-              {/each}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {#each (data.instabilityRolls ?? []) as r (r.id)}
+                  <tr style="border-bottom: 1px solid rgba(196,164,90,0.06);">
+                    <td class="px-0 py-2 text-[11px] text-muted-foreground whitespace-nowrap">{formatDate(r.created)}</td>
+                    <td class="px-3 py-2 text-[14px] text-foreground text-right">{r.roll}</td>
+                    <td class="px-3 py-2 text-[14px] text-muted-foreground text-right">{r.threshold}</td>
+                    <td class="px-3 py-2">
+                      {#if r.triggered}
+                        <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold" style="background: rgba(200,100,40,0.2); border: 1px solid rgba(200,100,40,0.3); color: #e07840;">Yes</span>
+                      {:else}
+                        <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold" style="background: rgba(61,107,61,0.2); border: 1px solid rgba(61,107,61,0.3); color: #90cc90;">No</span>
+                      {/if}
+                    </td>
+                    <td class="px-3 py-2 text-[14px] text-muted-foreground">
+                      {#if r.event_name}
+                        <span title={[r.event_desc, r.event_effect].filter(Boolean).join(' — ')} style="cursor: help; border-bottom: 1px dashed currentColor;">
+                          {r.event_name}
+                        </span>
+                      {:else}
+                        —
+                      {/if}
+                    </td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          {/if}
         {/if}
       </div>
     {/if}
@@ -1193,7 +1363,6 @@
           <!-- Roll Due -->
           <div>
             <label class="flex items-center gap-3 cursor-pointer mt-6">
-              <input type="hidden" name="roll_due" value="false" />
               <input type="checkbox" name="roll_due" value="true"
                 checked={data.node.roll_due}
                 class="w-4 h-4 rounded"
@@ -1205,7 +1374,6 @@
           <!-- Has Road -->
           <div class="col-span-2">
             <label class="flex items-center gap-3 cursor-pointer">
-              <input type="hidden" name="has_road" value="false" />
               <input type="checkbox" name="has_road" value="true"
                 checked={data.node.has_road}
                 class="w-4 h-4 rounded"

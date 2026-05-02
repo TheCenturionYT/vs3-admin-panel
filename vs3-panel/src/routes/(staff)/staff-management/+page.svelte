@@ -20,6 +20,15 @@
   let savingAccount = $state(false);
   let togglingAccount = $state(false);
 
+  let showDeleteDialog = $state(false);
+  let deleteTarget = $state<{ id: string; collection: 'staff' | 'members'; username: string } | null>(null);
+  let deletingAccount = $state(false);
+
+  function openDeleteDialog(account: { id: string; collection: 'staff' | 'members'; username: string }) {
+    deleteTarget = account;
+    showDeleteDialog = true;
+  }
+
   const isHeadAdmin = data.user.role === 'head_admin';
 
   function openAddModal(type: 'staff' | 'member') {
@@ -54,6 +63,7 @@
     if (form?.success) {
       showAddEditModal = false;
       showToggleDialog = false;
+      showDeleteDialog = false;
     }
   });
 </script>
@@ -147,6 +157,12 @@
                       style={account.isActive ? 'border-color: #8b2b2b; color: #ff9999;' : 'border-color: #3d3426; color: #8b7d65;'}>
                       {account.isActive ? 'Deactivate' : 'Reactivate'}
                     </button>
+                    <button type="button"
+                      onclick={() => openDeleteDialog({ id: account.id, collection: 'staff', username: account.username })}
+                      class="px-2 py-1 rounded text-[11px] font-semibold border transition-colors"
+                      style="border-color: #6b1a1a; color: #cc6666;">
+                      Delete
+                    </button>
                   </div>
                 {:else}
                   <span class="text-[14px] text-muted-foreground">—</span>
@@ -206,6 +222,12 @@
                       class="px-2 py-1 rounded text-[11px] font-semibold border transition-colors"
                       style={account.isActive ? 'border-color: #8b2b2b; color: #ff9999;' : 'border-color: #3d3426; color: #8b7d65;'}>
                       {account.isActive ? 'Deactivate' : 'Reactivate'}
+                    </button>
+                    <button type="button"
+                      onclick={() => openDeleteDialog({ id: account.id, collection: 'members', username: account.username })}
+                      class="px-2 py-1 rounded text-[11px] font-semibold border transition-colors"
+                      style="border-color: #6b1a1a; color: #cc6666;">
+                      Delete
                     </button>
                   </div>
                 {/if}
@@ -275,6 +297,9 @@
               class="w-full px-4 py-2 rounded-md text-[14px] text-foreground focus:outline-none focus:border-primary transition-colors"
               style="background: #2c2518; border: 1px solid #3d3426;"
               placeholder={modalMode === 'edit' ? 'Leave blank to keep current password' : 'Enter password (min 8 chars)'} />
+            {#if form?.action === 'createStaff' && form?.errors?.password}
+              <p class="text-[11px] mt-1" style="color: #ff9999;">{form.errors.password[0]}</p>
+            {/if}
           </div>
           <div class="mb-6">
             <label for="staff-role" class="block text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground mb-2">
@@ -317,6 +342,9 @@
               value={editTarget?.username ?? ''}
               class="w-full px-4 py-2 rounded-md text-[14px] text-foreground focus:outline-none focus:border-primary transition-colors"
               style="background: #2c2518; border: 1px solid #3d3426;" placeholder="Enter username" />
+            {#if form?.action === 'createMember' && form?.errors?.username}
+              <p class="text-[11px] mt-1" style="color: #ff9999;">{form.errors.username[0]}</p>
+            {/if}
           </div>
           <div class="mb-4">
             <label for="member-password" class="block text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground mb-2">
@@ -326,6 +354,9 @@
               class="w-full px-4 py-2 rounded-md text-[14px] text-foreground focus:outline-none focus:border-primary transition-colors"
               style="background: #2c2518; border: 1px solid #3d3426;"
               placeholder={modalMode === 'edit' ? 'Leave blank to keep current password' : 'Enter password (min 8 chars)'} />
+            {#if form?.action === 'createMember' && form?.errors?.password}
+              <p class="text-[11px] mt-1" style="color: #ff9999;">{form.errors.password[0]}</p>
+            {/if}
           </div>
           <div class="mb-6">
             <label for="member-faction" class="block text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground mb-2">
@@ -339,7 +370,15 @@
                 <option value={faction.id} selected={editTarget?.factionId === faction.id}>{faction.name}</option>
               {/each}
             </select>
+            {#if form?.action === 'createMember' && form?.errors?.factionId}
+              <p class="text-[11px] mt-1" style="color: #ff9999;">{form.errors.factionId[0]}</p>
+            {/if}
           </div>
+          {#if form?.action === 'createMember' && form?.errors?._global}
+            <div class="mb-4 px-4 py-2 rounded-md text-[14px]" style="background: rgba(139,43,43,0.12); border: 1px solid rgba(200,68,68,0.30); color: #ff9999;">
+              {form.errors._global[0]}
+            </div>
+          {/if}
           <div class="flex gap-2 justify-end">
             <button type="button" onclick={() => { showAddEditModal = false; }}
               class="px-4 py-2 rounded-md text-[14px] border border-border text-muted-foreground hover:text-foreground transition-colors">Cancel</button>
@@ -383,6 +422,39 @@
             style={toggleTarget.currentlyActive ? 'border-color: #8b2b2b; color: #ff9999;' : 'border-color: #c4a45a; color: #c4a45a;'}>
             {#if togglingAccount}<Loader2 class="w-4 h-4 animate-spin" />{/if}
             {toggleTarget.currentlyActive ? 'Deactivate Account' : 'Reactivate Account'}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+{/if}
+
+<!-- Delete Account Dialog -->
+{#if showDeleteDialog && deleteTarget}
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(0,0,0,0.78);"
+    role="dialog" aria-modal="true" aria-labelledby="delete-acct-title">
+    <div class="w-full max-w-[400px] rounded-lg p-6" style="background: #231d14; border: 1px solid rgba(196,164,90,0.28);">
+      <h2 id="delete-acct-title" class="text-[15px] font-semibold text-foreground mb-3">Delete Account</h2>
+      <p class="text-[14px] text-muted-foreground mb-6">
+        Permanently delete <strong class="text-foreground">{deleteTarget.username}</strong>? This removes the account and all associated data. This cannot be undone.
+      </p>
+      {#if form?.action === 'deleteAccount' && form?.error}
+        <div class="mb-4 px-4 py-2 rounded-md text-[14px]" style="background: rgba(139,43,43,0.12); border: 1px solid rgba(200,68,68,0.30); color: #ff9999;">
+          {form.error}
+        </div>
+      {/if}
+      <form method="POST" action="?/deleteAccount"
+        use:enhance={() => { deletingAccount = true; return async ({ update }) => { await update(); deletingAccount = false; }; }}>
+        <input type="hidden" name="id" value={deleteTarget.id} />
+        <input type="hidden" name="collection" value={deleteTarget.collection} />
+        <div class="flex gap-2 justify-end">
+          <button type="button" onclick={() => { showDeleteDialog = false; }}
+            class="px-4 py-2 rounded-md text-[14px] border border-border text-muted-foreground hover:text-foreground transition-colors">Cancel</button>
+          <button type="submit" disabled={deletingAccount}
+            class="flex items-center gap-2 px-4 py-2 rounded-md text-[14px] border transition-colors disabled:opacity-50"
+            style="border-color: #6b1a1a; color: #cc6666; background: rgba(107,26,26,0.12);">
+            {#if deletingAccount}<Loader2 class="w-4 h-4 animate-spin" />{/if}
+            Delete Permanently
           </button>
         </div>
       </form>

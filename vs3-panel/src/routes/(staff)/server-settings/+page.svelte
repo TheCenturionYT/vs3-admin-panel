@@ -12,14 +12,12 @@
   let dayOfWeek = $state<number>(data.deadlineConfig?.day_of_week ?? 6);
   let hour      = $state<number>(data.deadlineConfig?.hour ?? 23);
   let minute    = $state<number>(data.deadlineConfig?.minute ?? 59);
-  let tzOffset  = $state<number>(data.deadlineConfig?.timezone_offset ?? -5);
   let isActive  = $state<boolean>(data.deadlineConfig?.is_active ?? true);
   let savingDeadline = $state(false);
 
   const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-  const tzLabel = $derived(tzOffset >= 0 ? `UTC+${tzOffset}` : `UTC${tzOffset}`);
   const nextDeadlinePreview = $derived(
-    `${dayNames[dayOfWeek]} at ${String(hour).padStart(2,'0')}:${String(minute).padStart(2,'0')} ${tzLabel}`
+    `${dayNames[dayOfWeek]} at ${String(hour).padStart(2,'0')}:${String(minute).padStart(2,'0')} EST`
   );
 
   // Export state
@@ -263,13 +261,6 @@
                    class="mt-1 block w-full rounded-md bg-card border border-border px-3 py-2 text-[14px] text-foreground" />
           </label>
         </div>
-
-        <label class="block">
-          <span class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">UTC Offset (hours)</span>
-          <input type="number" name="timezone_offset" min="-12" max="14" step="1" bind:value={tzOffset} disabled={!isHeadAdmin}
-                 class="mt-1 block w-full rounded-md bg-card border border-border px-3 py-2 text-[14px] text-foreground" />
-          <span class="text-[11px] text-muted-foreground">e.g. -5 for EST, +0 for UTC, +1 for CET</span>
-        </label>
 
         <div class="flex items-center gap-3 pt-6">
           <Switch name="is_active" bind:checked={isActive} disabled={!isHeadAdmin} />
