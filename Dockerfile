@@ -37,10 +37,6 @@ COPY --from=svelte-builder /app/package.json /app/package.json
 
 ENV NODE_ENV=production
 
-# SERVICE_TYPE=pocketbase → PocketBase; anything else → SvelteKit
-CMD ["/bin/sh", "-c", \
-  "if [ \"$SERVICE_TYPE\" = \"pocketbase\" ]; then \
-     /usr/local/bin/pocketbase serve --http=0.0.0.0:${PORT:-8090} --dir=/pb_data --hooksDir=/pb_hooks --migrationsDir=/pb_migrations; \
-   else \
-     node /app/build/index.js; \
-   fi"]
+# Default: run SvelteKit.
+# satisfied-freedom overrides this via Railway's Custom Start Command setting.
+CMD ["node", "/app/build/index.js"]
