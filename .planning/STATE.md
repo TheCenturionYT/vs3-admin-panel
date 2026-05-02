@@ -20,8 +20,8 @@
 | Field | Value |
 |-------|-------|
 | Phase | 4 — Player Portal |
-| Plan | TBD (planning next) |
-| Status | Phase 3 complete — Phase 4 planning |
+| Plan | TBD (executing next) |
+| Status | Phase 4 planned — ready to execute |
 | Blocking issue | None |
 
 **Progress:**
@@ -29,10 +29,10 @@
 [Phase 1: Foundation        ] [x] Complete — 6/6 plans complete
 [Phase 2: Core Data & Wars  ] [x] Complete — 10/10 plans complete
 [Phase 3: Upkeep Engine     ] [x] Complete — 8/8 plans complete (2026-05-02)
-[Phase 4: Player Portal     ] [ ] Planning
+[Phase 4: Player Portal     ] [ ] Planned — 2 plans, ready to execute
 ```
 
-Overall: 3 of 4 phases complete
+Overall: 3 of 4 phases complete (Phase 4 planned)
 
 ---
 
@@ -42,7 +42,7 @@ Overall: 3 of 4 phases complete
 |--------|-------|
 | Requirements mapped | 56/56 |
 | Phases defined | 4 |
-| Plans created | 24 (Phase 1: 6, Phase 2: 10, Phase 3: 8) |
+| Plans created | 26 (Phase 1: 6, Phase 2: 10, Phase 3: 8, Phase 4: 2) |
 | Plans complete | 24 (01-01 through 01-06, 02-01 through 02-10, 03-01 through 03-08) — Phases 1, 2 & 3 done |
 
 ---
@@ -75,7 +75,7 @@ None.
 
 ### Todos
 
-- [ ] Plan Phase 4: Player Portal — 4 requirements (PORTAL-01 through PORTAL-04)
+- [ ] Execute Phase 4: Player Portal — 2 plans (04-01, 04-02)
 
 ### Blockers
 

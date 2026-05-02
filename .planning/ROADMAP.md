@@ -122,6 +122,7 @@
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 04-02-PLAN.md — Portal page UI: My Faction Nodes cards + War & Alliance Board two-column section
 
+**Cross-cutting constraints:** Faction privacy enforced via locals.pb (member-scoped token) + PocketBase collection rule — never client-side; effective upkeep computed via calcUpkeep() never stored; no write actions in portal routes except sign-out
 **UI hint**: yes
 
 ---
