@@ -92,8 +92,8 @@
 - [x] 03-01-PLAN.md — Phase 3 schema migration (4 collections) + npm + shadcn deps
 
 **Wave 2** *(parallel — both depend on 03-01)*
-- [ ] 03-02-PLAN.md — Scheduler procDeadlines port + INSTAB_EVENTS table + bulk-process route
-- [ ] 03-03-PLAN.md — Server Settings: Deadline Configuration card
+- [x] 03-02-PLAN.md — Scheduler procDeadlines port + INSTAB_EVENTS table + bulk-process route
+- [x] 03-03-PLAN.md — Server Settings: Deadline Configuration card
 
 **Wave 3** *(depends on Wave 2)*
 - [ ] 03-04-PLAN.md — Node detail: tabs, submissions flow, cap preview, instability roll, cycle history
@@ -121,5 +121,5 @@
 |-------|----------------|--------|-----------|
 | 1. Foundation | 6/6 | Complete | 2026-05-01 |
 | 2. Core Data & Wars | 0/10 | Planned | - |
-| 3. Upkeep Engine & Automation | 1/6 | In Progress | - |
+| 3. Upkeep Engine & Automation | 3/6 | In Progress | - |
 | 4. Player Portal | 0/? | Not started | - |
