@@ -10,7 +10,6 @@
     Handshake,
     ScrollText,
     BookOpen,
-    CalendarClock,
     BarChart3
   } from '@lucide/svelte';
 
@@ -27,6 +26,7 @@
     { label: 'Diplomacy',    href: '/diplomacy',      Icon: Handshake },
     { label: 'Server Log',   href: '/server-log',     Icon: ScrollText },
     { label: 'SP Catalogue', href: '/sp-catalogue',   Icon: BookOpen },
+    { label: 'Metrics',      href: '/metrics',        Icon: BarChart3 },
   ];
 
   function isActive(href: string): boolean {
@@ -77,30 +77,4 @@
     {/each}
   </div>
 
-  <div class="mx-4 my-2" style="border-top: 1px solid #3d3426;"></div>
-
-  <div class="px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.07em] text-primary">
-    Phase 3
-  </div>
-
-  <div class="pb-2">
-    <div
-      class="flex items-center gap-3 px-4 min-h-[44px] text-[14px] text-muted-foreground cursor-not-allowed select-none"
-      title="Coming in Phase 3"
-      aria-disabled="true"
-    >
-      <CalendarClock class="w-4 h-4 shrink-0 opacity-50" strokeWidth={1.5} />
-      <span class="opacity-60">Upkeep</span>
-      <span class="ml-auto text-[10px] font-semibold uppercase tracking-wide opacity-40">Soon</span>
-    </div>
-    <div
-      class="flex items-center gap-3 px-4 min-h-[44px] text-[14px] text-muted-foreground cursor-not-allowed select-none"
-      title="Coming in Phase 3"
-      aria-disabled="true"
-    >
-      <BarChart3 class="w-4 h-4 shrink-0 opacity-50" strokeWidth={1.5} />
-      <span class="opacity-60">Metrics</span>
-      <span class="ml-auto text-[10px] font-semibold uppercase tracking-wide opacity-40">Soon</span>
-    </div>
-  </div>
 </nav>
