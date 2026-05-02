@@ -1,11 +1,26 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import { Download, Upload, AlertTriangle, Loader2 } from '@lucide/svelte';
+  import { Switch } from '$lib/components/ui/switch';
   import type { PageData, ActionData } from './$types';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
-  const isHeadAdmin = $derived(data.isHeadAdmin);
+  const isHeadAdmin = $derived(data.isHeadAdmin === true);
+
+  // Deadline configuration state
+  let dayOfWeek = $state<number>(data.deadlineConfig?.day_of_week ?? 6);
+  let hour      = $state<number>(data.deadlineConfig?.hour ?? 23);
+  let minute    = $state<number>(data.deadlineConfig?.minute ?? 59);
+  let tzOffset  = $state<number>(data.deadlineConfig?.timezone_offset ?? -5);
+  let isActive  = $state<boolean>(data.deadlineConfig?.is_active ?? true);
+  let savingDeadline = $state(false);
+
+  const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const tzLabel = $derived(tzOffset >= 0 ? `UTC+${tzOffset}` : `UTC${tzOffset}`);
+  const nextDeadlinePreview = $derived(
+    `${dayNames[dayOfWeek]} at ${String(hour).padStart(2,'0')}:${String(minute).padStart(2,'0')} ${tzLabel}`
+  );
 
   // Export state
   let exporting = $state(false);
@@ -203,6 +218,91 @@
            style="background: rgba(255,255,255,0.04); border: 1px solid #3d3426; color: #7a6e60;">
         Data import requires Head Admin access.
       </div>
+    {/if}
+  </div>
+</div>
+
+<!-- DEADLINE CONFIGURATION card -->
+<div class="rounded-lg border" style="border-color: #3d3426; background: #1a1410; margin-top: 1rem;">
+  <div class="px-5 pt-5 pb-3">
+    <span class="text-[11px] font-semibold uppercase tracking-[0.07em] text-primary">DEADLINE CONFIGURATION</span>
+  </div>
+  <div style="border-top: 1px solid #3d3426;"></div>
+  <div class="px-5 py-5">
+    <p class="text-[14px] text-muted-foreground mb-4">Configure when the weekly upkeep deadline is processed.</p>
+
+    {#if !isHeadAdmin}
+      <p class="text-[14px] text-muted-foreground italic mb-4">Deadline configuration requires Head Admin access.</p>
+    {/if}
+
+    <form method="POST" action="?/saveDeadlineConfig" use:enhance={() => {
+      savingDeadline = true;
+      return async ({ update }) => { await update(); savingDeadline = false; };
+    }}>
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <label class="block">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">Day of Week</span>
+          <select name="day_of_week" bind:value={dayOfWeek} disabled={!isHeadAdmin}
+                  class="mt-1 block w-full rounded-md bg-card border border-border px-3 py-2 text-[14px] text-foreground">
+            {#each dayNames as name, i}
+              <option value={i}>{name}</option>
+            {/each}
+          </select>
+        </label>
+
+        <div class="flex items-end gap-2">
+          <label class="block flex-1">
+            <span class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">Hour (0–23)</span>
+            <input type="number" name="hour" min="0" max="23" bind:value={hour} disabled={!isHeadAdmin}
+                   class="mt-1 block w-full rounded-md bg-card border border-border px-3 py-2 text-[14px] text-foreground" />
+          </label>
+          <span class="text-[14px] text-muted-foreground pb-3">:</span>
+          <label class="block flex-1">
+            <span class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">Minute (0–59)</span>
+            <input type="number" name="minute" min="0" max="59" bind:value={minute} disabled={!isHeadAdmin}
+                   class="mt-1 block w-full rounded-md bg-card border border-border px-3 py-2 text-[14px] text-foreground" />
+          </label>
+        </div>
+
+        <label class="block">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">UTC Offset (hours)</span>
+          <input type="number" name="timezone_offset" min="-12" max="14" step="1" bind:value={tzOffset} disabled={!isHeadAdmin}
+                 class="mt-1 block w-full rounded-md bg-card border border-border px-3 py-2 text-[14px] text-foreground" />
+          <span class="text-[11px] text-muted-foreground">e.g. -5 for EST, +0 for UTC, +1 for CET</span>
+        </label>
+
+        <div class="flex items-center gap-3 pt-6">
+          <Switch name="is_active" bind:checked={isActive} disabled={!isHeadAdmin} />
+          <input type="hidden" name="is_active" value={isActive ? 'on' : ''} />
+          <span class="text-[14px] text-foreground">Scheduler active</span>
+        </div>
+      </div>
+
+      <div class="text-[14px] text-muted-foreground mb-4">
+        Next deadline: <span class="text-foreground">{nextDeadlinePreview}</span>
+      </div>
+
+      {#if !isActive}
+        <div class="text-[13px] mb-3" style="color: #d4c060;">
+          Disabling the scheduler will stop automatic deadline processing.
+        </div>
+      {/if}
+
+      {#if isHeadAdmin}
+        <button type="submit" disabled={savingDeadline}
+                class="rounded-md px-4 py-2 text-[14px] font-semibold"
+                style="background: #c4a45a; color: #1a1410;">
+          {savingDeadline ? 'Saving…' : 'Save Deadline Config'}
+        </button>
+      {/if}
+    </form>
+
+    {#if data.deadlineConfig?.last_processed_ts}
+      <div class="text-[11px] text-muted-foreground mt-4">
+        Last processed: {data.deadlineConfig.last_processed_ts}
+      </div>
+    {:else}
+      <div class="text-[11px] text-muted-foreground mt-4">Never processed</div>
     {/if}
   </div>
 </div>
