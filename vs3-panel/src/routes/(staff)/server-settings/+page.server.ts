@@ -6,7 +6,6 @@ const saveDeadlineConfigSchema = z.object({
   day_of_week: z.coerce.number().int().min(0).max(6),
   hour: z.coerce.number().int().min(0).max(23),
   minute: z.coerce.number().int().min(0).max(59),
-  timezone_offset: z.coerce.number().int().min(-12).max(14),
   is_active: z.preprocess(v => v === 'on' || v === 'true' || v === true, z.boolean())
 });
 
@@ -37,6 +36,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions: Actions = {
   exportData: async ({ locals }) => {
+    // Intentionally available to all staff (not head_admin only) — exportData is read-only.
+    // A compromised staff account can export data but cannot mutate it via this endpoint.
+    // If export access should be restricted, add a role check matching importData.
     try {
       const pbUrl = 'http://localhost:8090';
       const token = locals.pb.authStore.token;
@@ -71,7 +73,6 @@ export const actions: Actions = {
       day_of_week: formData.get('day_of_week'),
       hour: formData.get('hour'),
       minute: formData.get('minute'),
-      timezone_offset: formData.get('timezone_offset'),
       is_active: formData.get('is_active')
     });
     if (!parsed.success) {
@@ -81,10 +82,11 @@ export const actions: Actions = {
     }
     try {
       const existing = await locals.pb.collection('deadline_config').getList(1, 1, {});
+      const saveData = { ...parsed.data, timezone_offset: -5 };
       if (existing.items.length > 0) {
-        await locals.pb.collection('deadline_config').update(existing.items[0].id, parsed.data);
+        await locals.pb.collection('deadline_config').update(existing.items[0].id, saveData);
       } else {
-        await locals.pb.collection('deadline_config').create(parsed.data);
+        await locals.pb.collection('deadline_config').create(saveData);
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
@@ -126,32 +128,46 @@ export const actions: Actions = {
       });
     }
 
-    // Destructive import: delete all records then create from backup
-    try {
-      for (const collection of EXPORT_COLLECTIONS) {
-        // Delete all existing records
+    // Destructive import: delete all records then re-create from backup.
+    // Fail fast on any collection error — report the exact collection name so staff
+    // know what partial state exists. Each collection is attempted independently.
+    for (const collection of EXPORT_COLLECTIONS) {
+      // Delete phase — abort immediately on error (no silent partial state)
+      try {
         const existing = await locals.pb.collection(collection).getFullList({ fields: 'id' });
-        await Promise.all(existing.map(r => locals.pb.collection(collection).delete(r.id)));
+        for (const r of existing) {
+          await locals.pb.collection(collection).delete(r.id);
+        }
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        console.error(`[server-settings] importData delete failed on '${collection}':`, message);
+        return fail(500, {
+          action: 'importData',
+          error: `Import aborted: failed to clear collection '${collection}'. Subsequent collections were not modified. Error: ${message}`
+        });
+      }
 
-        // Create records from backup
-        const records = backup[collection];
-        if (Array.isArray(records)) {
-          for (const record of records) {
-            const { id, created, updated, collectionId, collectionName, ...fields } = record as Record<string, unknown>;
-            // Preserve original ID if possible (PocketBase allows id on create)
+      // Insert phase — abort on error with collection context
+      const records = backup[collection];
+      if (Array.isArray(records)) {
+        for (const record of records) {
+          const { id, created, updated, collectionId, collectionName, ...fields } = record as Record<string, unknown>;
+          try {
+            await locals.pb.collection(collection).create({ id, ...fields });
+          } catch {
+            // If ID conflict or not allowed, create without preserved ID
             try {
-              await locals.pb.collection(collection).create({ id, ...fields });
-            } catch {
-              // If ID conflict or not allowed, create without ID
               await locals.pb.collection(collection).create(fields);
+            } catch (err2: unknown) {
+              const message2 = err2 instanceof Error ? err2.message : 'Unknown error';
+              return fail(500, {
+                action: 'importData',
+                error: `Import aborted: failed to insert record into '${collection}'. Error: ${message2}`
+              });
             }
           }
         }
       }
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      console.error('[server-settings] importData error:', message);
-      return fail(500, { action: 'importData', error: `Import failed: ${message}` });
     }
 
     return { success: true, action: 'importData' };

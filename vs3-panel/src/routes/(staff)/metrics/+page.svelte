@@ -47,7 +47,11 @@
     for (const h of filteredHistory) {
       const node = data.nodes.find(n => n.id === h.node);
       try {
-        const snap: SnapshotItem[] = JSON.parse(h.snapshot || '[]');
+        // PocketBase json-typed fields return already-deserialized values via the SDK.
+        // Guard handles both native array (normal) and legacy string (pre-WR-07-fix data).
+        const snap: SnapshotItem[] = Array.isArray(h.snapshot)
+          ? (h.snapshot as SnapshotItem[])
+          : (typeof h.snapshot === 'string' ? JSON.parse(h.snapshot || '[]') : []);
         for (const s of snap) {
           items.push({ ...s, node: h.node, faction: node?.owner ?? '', deadline_ts: h.deadline_ts });
         }

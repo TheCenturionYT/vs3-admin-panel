@@ -18,8 +18,8 @@ export const load: PageServerLoad = async ({ locals }) => {
     locals.pb.collection('deadline_config').getList(1, 1, {})
       .catch(() => ({ items: [] as Array<Record<string, unknown>> })),
     locals.pb.collection('submissions').getFullList({
-      fields: 'id,node,sp_value'
-    }).catch(() => [] as Array<{ node: string; sp_value: number }>),
+      fields: 'id,node,sp_value,category'
+    }).catch(() => [] as Array<{ node: string; sp_value: number; category: string }>),
     locals.pb.collection('sp_catalogue').getFullList({
       sort: 'category,name',
       fields: 'id,name,category,sp_value'
@@ -59,10 +59,15 @@ export const load: PageServerLoad = async ({ locals }) => {
   const schedulerOverdue = daysSinceLastRun > 8;
   const schedulerActive = ((deadlineConfigList as { items: Array<Record<string, unknown>> }).items[0]?.is_active as boolean | undefined) ?? false;
 
-  // Build per-node paid SP totals
+  // Build per-node paid SP totals and per-category breakdowns for cap preview
   const paidByNode = new Map<string, number>();
-  for (const s of allSubmissions as Array<{ node: string; sp_value: number }>) {
+  const paidCategoryByNode = new Map<string, { rr: number; c: number }>();
+  for (const s of allSubmissions as Array<{ node: string; sp_value: number; category: string }>) {
     paidByNode.set(s.node, (paidByNode.get(s.node) ?? 0) + s.sp_value);
+    const cur = paidCategoryByNode.get(s.node) ?? { rr: 0, c: 0 };
+    if (s.category === 'Raw Renewable') cur.rr += s.sp_value;
+    if (s.category === 'Currency') cur.c += s.sp_value;
+    paidCategoryByNode.set(s.node, cur);
   }
 
   // Compute overdue nodes (paid < required, owner != Neutral and != null)
@@ -91,10 +96,12 @@ export const load: PageServerLoad = async ({ locals }) => {
         f?.type ?? 'PvE',
         false
       );
-      const paid = paidByNode.get((n as { id: string }).id) ?? 0;
+      const nodeId = (n as { id: string }).id;
+      const paid = paidByNode.get(nodeId) ?? 0;
+      const catTotals = paidCategoryByNode.get(nodeId) ?? { rr: 0, c: 0 };
       return {
         node: {
-          id: (n as { id: string }).id,
+          id: nodeId,
           name: (n as { name: string }).name,
           type: (n as { type: string }).type,
           tier: (n as { tier: number }).tier,
@@ -102,6 +109,8 @@ export const load: PageServerLoad = async ({ locals }) => {
         },
         paid,
         required: eff,
+        rrPaid: catTotals.rr,
+        cPaid: catTotals.c,
         faction: f ? { id: f.id, name: f.name, color: f.color ?? null } : null
       };
     })

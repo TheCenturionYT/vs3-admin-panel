@@ -43,6 +43,8 @@
   let quickLogRequired = $state(0);
   let quickLogPaid = $state(0);
   let quickLogFactionName = $state('');
+  let qlExistingRR = $state(0);   // existing Raw Renewable SP for the node this cycle
+  let qlExistingC = $state(0);    // existing Currency SP for the node this cycle
 
   // Quick-log submission form state
   let qlSubmissionType = $state<'upkeep' | 'instability_reduction' | 'repair' | 'upgrade'>('upkeep');
@@ -62,23 +64,26 @@
     if (qlSubmissionType !== 'upkeep' || !qlSelectedItem) {
       return { applicable: qlSubmissionType === 'upkeep', ok: true, rrPct: 0, cPct: 0, rrSP: 0, cSP: 0, cap: 0 };
     }
-    // We don't have the per-node current submissions in dashboard load, so we use the paidByNode approach
-    // The cap is computed from the quickLogRequired (effective upkeep)
     const eff = quickLogRequired || 1;
-    const rrSP = (qlSelectedItem as { category: string }).category === 'Raw Renewable' ? qlNewSpValue : 0;
-    const cSP = (qlSelectedItem as { category: string }).category === 'Currency' ? qlNewSpValue : 0;
+    // Accumulate existing cycle SP + new submission to match server-side checkCaps behavior
+    const newRR = (qlSelectedItem as { category: string }).category === 'Raw Renewable' ? qlNewSpValue : 0;
+    const newC = (qlSelectedItem as { category: string }).category === 'Currency' ? qlNewSpValue : 0;
+    const rrSP = qlExistingRR + newRR;
+    const cSP = qlExistingC + newC;
     const rrPct = Math.round(rrSP / eff * 100);
     const cPct = Math.round(cSP / eff * 100);
     return { applicable: true, ok: rrPct <= 40 && cPct <= 40, rrPct, cPct, rrSP, cSP, cap: Math.round(eff * 0.4) };
   })());
   const qlSubmitDisabled = $derived(qlSubmitting || (qlSubmissionType === 'upkeep' && !qlCapPreview.ok));
 
-  function openQuickLog(nodeId: string, nodeName: string, required: number, paid: number, factionName: string | null) {
+  function openQuickLog(nodeId: string, nodeName: string, required: number, paid: number, factionName: string | null, rrPaid = 0, cPaid = 0) {
     quickLogNodeId = nodeId;
     quickLogNodeName = nodeName;
     quickLogRequired = required;
     quickLogPaid = paid;
     quickLogFactionName = factionName ?? '';
+    qlExistingRR = rrPaid;
+    qlExistingC = cPaid;
     qlSubmissionType = 'upkeep';
     qlSelectedItemId = '';
     qlQty = 1;
@@ -254,7 +259,7 @@
               <td class="px-0 py-2 text-right">
                 <button
                   type="button"
-                  onclick={() => openQuickLog(row.node.id, row.node.name, row.required, row.paid, row.faction?.name ?? null)}
+                  onclick={() => openQuickLog(row.node.id, row.node.name, row.required, row.paid, row.faction?.name ?? null, row.rrPaid ?? 0, row.cPaid ?? 0)}
                   class="px-2 py-0.5 rounded text-[11px] border transition-colors"
                   style="border-color: #c4a45a; color: #c4a45a;"
                   onmouseover={(e) => (e.currentTarget as HTMLButtonElement).style.background = 'rgba(196,164,90,0.12)'}
