@@ -3,7 +3,7 @@
 // Enables username-based authentication on the staff and members collections.
 // These were created with allowUsernameAuth: false (PocketBase default) in the Phase 2 migration.
 migrate((db) => {
-    const dao = Dao(db);
+    const dao = new Dao(db);
 
     for (const name of ["staff", "members"]) {
         try {

@@ -24,8 +24,7 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
   const [rawNodes, wars, diplomacyAgreements] = await Promise.all([
     // Filter: nodes owned by this faction (owner field) — excludes unowned/neutral nodes
     locals.pb.collection('nodes').getFullList({
-      filter: 'owner = {:factionId}',
-      filterValues: { factionId },
+      filter: `owner = "${factionId}"`,
       sort: 'name'
     }),
     // Wars: all active wars — global board (T-04-04: accepted, intentional)

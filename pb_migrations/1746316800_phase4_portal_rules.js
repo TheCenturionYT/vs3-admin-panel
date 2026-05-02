@@ -10,7 +10,7 @@
 // Write rules are NOT changed — members have no create/update/delete access.
 
 migrate((db) => {
-    const dao = Dao(db);
+    const dao = new Dao(db);
     const STAFF = '@request.auth.role = "head_admin" || @request.auth.role = "staff"';
     const MEMBER_OR_STAFF = '@request.auth.role = "head_admin" || @request.auth.role = "staff" || @request.auth.collectionName = "members"';
 
@@ -57,7 +57,7 @@ migrate((db) => {
 
 }, (db) => {
     // Revert: restore STAFF-only rules
-    const dao = Dao(db);
+    const dao = new Dao(db);
     const STAFF = '@request.auth.role = "head_admin" || @request.auth.role = "staff"';
 
     for (const name of ["factions", "nodes", "wars", "diplomacy", "submissions"]) {
