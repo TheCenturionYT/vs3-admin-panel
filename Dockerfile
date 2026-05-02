@@ -30,8 +30,6 @@ RUN apk add --no-cache ca-certificates
 COPY --from=pb-downloader /tmp/pocketbase /usr/local/bin/pocketbase
 COPY pb_hooks/       /pb_hooks/
 COPY pb_migrations/  /pb_migrations/
-VOLUME /pb_data
-
 # SvelteKit
 COPY --from=svelte-builder /app/build        /app/build
 COPY --from=svelte-builder /app/node_modules /app/node_modules
