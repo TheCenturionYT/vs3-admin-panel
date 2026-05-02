@@ -1,5 +1,14 @@
 import { fail } from '@sveltejs/kit';
+import { z } from 'zod';
 import type { Actions, PageServerLoad } from './$types';
+
+const saveDeadlineConfigSchema = z.object({
+  day_of_week: z.coerce.number().int().min(0).max(6),
+  hour: z.coerce.number().int().min(0).max(23),
+  minute: z.coerce.number().int().min(0).max(59),
+  timezone_offset: z.coerce.number().int().min(-12).max(14),
+  is_active: z.preprocess(v => v === 'on' || v === 'true' || v === true, z.boolean())
+});
 
 const EXPORT_COLLECTIONS = [
   'factions',
@@ -14,9 +23,16 @@ const EXPORT_COLLECTIONS = [
 ] as const;
 
 export const load: PageServerLoad = async ({ locals }) => {
-  return {
-    isHeadAdmin: (locals.pb.authStore.record as Record<string, unknown>)?.role === 'head_admin'
-  };
+  const role = (locals.pb.authStore.record as { role?: string } | null)?.role;
+  const isHeadAdmin = role === 'head_admin';
+
+  const deadlineConfigList = await locals.pb
+    .collection('deadline_config')
+    .getList(1, 1, {})
+    .catch(() => ({ items: [] as Array<Record<string, unknown>> }));
+  const deadlineConfig = deadlineConfigList.items[0] ?? null;
+
+  return { isHeadAdmin, deadlineConfig };
 };
 
 export const actions: Actions = {
@@ -42,6 +58,40 @@ export const actions: Actions = {
       console.error('[server-settings] exportData error:', message);
       return fail(500, { action: 'exportData', error: 'Export failed. Please try again.' });
     }
+  },
+
+  saveDeadlineConfig: async ({ request, locals }) => {
+    const role = (locals.pb.authStore.record as { role?: string } | null)?.role;
+    if (role !== 'head_admin') {
+      return fail(403, { action: 'saveDeadlineConfig',
+        errors: { _global: ['Deadline configuration requires Head Admin access.'] } });
+    }
+    const formData = await request.formData();
+    const parsed = saveDeadlineConfigSchema.safeParse({
+      day_of_week: formData.get('day_of_week'),
+      hour: formData.get('hour'),
+      minute: formData.get('minute'),
+      timezone_offset: formData.get('timezone_offset'),
+      is_active: formData.get('is_active')
+    });
+    if (!parsed.success) {
+      return fail(400, { action: 'saveDeadlineConfig',
+        errors: parsed.error.flatten().fieldErrors,
+        values: Object.fromEntries(formData) });
+    }
+    try {
+      const existing = await locals.pb.collection('deadline_config').getList(1, 1, {});
+      if (existing.items.length > 0) {
+        await locals.pb.collection('deadline_config').update(existing.items[0].id, parsed.data);
+      } else {
+        await locals.pb.collection('deadline_config').create(parsed.data);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      return fail(500, { action: 'saveDeadlineConfig',
+        errors: { _global: [`Save failed: ${message}`] } });
+    }
+    return { success: true, action: 'saveDeadlineConfig' };
   },
 
   importData: async ({ request, locals }) => {
