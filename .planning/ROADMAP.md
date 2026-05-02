@@ -86,7 +86,21 @@
   2. At the configured deadline time, all owned nodes are automatically processed server-side with no browser open — payment status is calculated, instability deltas applied, and the cycle is moved to history; re-running the processor does not double-apply instability to already-processed nodes
   3. Nodes with instability > 0 and rollDue set show an actionable instability check on the dashboard — staff triggers a d100 roll, an event from the correct type-specific pool is presented if triggered, and staff resolves it via action buttons
   4. The dashboard shows "Last deadline run: X ago" and displays an alert if no run has occurred in over 8 days; the metrics tab shows SP submission totals by category, item, faction, and node alongside a weekly SP owed vs paid chart per faction
-**Plans**: TBD
+**Plans**: 6 plans in 4 waves
+
+**Wave 1**
+- [ ] 03-01-PLAN.md — Phase 3 schema migration (4 collections) + npm + shadcn deps
+
+**Wave 2** *(parallel — both depend on 03-01)*
+- [ ] 03-02-PLAN.md — Scheduler procDeadlines port + INSTAB_EVENTS table + bulk-process route
+- [ ] 03-03-PLAN.md — Server Settings: Deadline Configuration card
+
+**Wave 3** *(depends on Wave 2)*
+- [ ] 03-04-PLAN.md — Node detail: tabs, submissions flow, cap preview, instability roll, cycle history
+
+**Wave 4** *(parallel — both depend on Wave 3 / Wave 2)*
+- [ ] 03-05-PLAN.md — Dashboard: scheduler health card, overdue widget, quick-log modal, Process All Overdue
+- [ ] 03-06-PLAN.md — Metrics page (SP totals + weekly chart) + sidebar Metrics link
 **UI hint**: yes
 
 ### Phase 4: Player Portal
@@ -107,5 +121,5 @@
 |-------|----------------|--------|-----------|
 | 1. Foundation | 6/6 | Complete | 2026-05-01 |
 | 2. Core Data & Wars | 0/10 | Planned | - |
-| 3. Upkeep Engine & Automation | 0/? | Not started | - |
+| 3. Upkeep Engine & Automation | 0/6 | Planned | - |
 | 4. Player Portal | 0/? | Not started | - |
