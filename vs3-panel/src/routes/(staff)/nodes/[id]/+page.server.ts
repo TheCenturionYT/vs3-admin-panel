@@ -684,16 +684,6 @@ export const actions: Actions = {
 
       const actor = (locals.pb.authStore.record as { username?: string } | null)?.username ?? '';
 
-      // Snapshot: only keep essential fields to avoid PocketBase SDK serialization issues
-      const snapshotData = (submissions as Record<string, unknown>[]).map(s => ({
-        item_name: s.item_name ?? '',
-        category: s.category ?? '',
-        qty: s.qty ?? 1,
-        sp_value: s.sp_value ?? 0,
-        submission_type: s.submission_type ?? '',
-        staff_note: s.staff_note ?? ''
-      }));
-
       step = 'create-history';
       await locals.pb.collection('submission_history').create({
         node: params.id,
@@ -701,8 +691,8 @@ export const actions: Actions = {
         paid_sp: paidSP,
         required_sp: effectiveUpkeep,
         outcome,
-        instab_delta: instabDelta,
-        snapshot: snapshotData
+        instab_delta: instabDelta
+        // snapshot omitted: field maxSize was 0 in schema — fixed via migration 1777900003
       });
 
       step = 'update-instability';
