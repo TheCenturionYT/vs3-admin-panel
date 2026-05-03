@@ -606,15 +606,60 @@ export const actions: Actions = {
 
   confirmCycle: async ({ locals, params }) => {
     try {
-      const submissions = await locals.pb.collection('submissions').getFullList({
-        filter: `node = "${params.id}"`,
-        fields: 'sp_value'
-      });
-      const totalSP = (submissions as { sp_value: number }[]).reduce((s, r) => s + r.sp_value, 0);
+      const node = await locals.pb.collection('nodes').getOne(params.id);
+      const factionId = (node as { owner?: string }).owner ?? '';
+      const [submissions, ownerFaction, ownerNodes, ownerWars] = await Promise.all([
+        locals.pb.collection('submissions').getFullList({ filter: `node = "${params.id}"` }),
+        factionId ? locals.pb.collection('factions').getOne(factionId).catch(() => null) : Promise.resolve(null),
+        factionId ? locals.pb.collection('nodes').getFullList({ filter: `owner = "${factionId}"`, fields: 'id' }) : Promise.resolve([]),
+        factionId ? locals.pb.collection('wars').getFullList({ filter: `(faction_a = "${factionId}" || faction_b = "${factionId}") && status = "active"`, fields: 'id' }) : Promise.resolve([])
+      ]);
+
+      const effectiveUpkeep = calcUpkeep(
+        (node as { base_upkeep: number }).base_upkeep,
+        ownerNodes.length,
+        ownerWars.length,
+        (ownerFaction as { type?: 'PvP' | 'PvE' } | null)?.type ?? 'PvE',
+        !factionId
+      );
+
+      const paidSP = (submissions as { submission_type: string; sp_value: number }[])
+        .filter(s => s.submission_type === 'upkeep')
+        .reduce((sum, s) => sum + s.sp_value, 0);
+
+      const paymentPct = effectiveUpkeep > 0 ? paidSP / effectiveUpkeep : 1;
+      let outcome: string;
+      let instabDelta: number;
+      if (paymentPct >= 1)       { outcome = 'paid';        instabDelta = 0; }
+      else if (paymentPct >= 0.5){ outcome = 'partial';     instabDelta = 1; }
+      else if (paymentPct > 0)   { outcome = 'underfunded'; instabDelta = 2; }
+      else                       { outcome = 'unpaid';      instabDelta = 2; }
+
       const actor = (locals.pb.authStore.record as { username?: string } | null)?.username ?? '';
+
+      await locals.pb.collection('submission_history').create({
+        node: params.id,
+        deadline_ts: new Date().toISOString(),
+        paid_sp: paidSP,
+        required_sp: effectiveUpkeep,
+        outcome,
+        instab_delta: instabDelta,
+        snapshot: submissions
+      });
+
+      if (instabDelta > 0) {
+        const curInstab = (node as { instability?: number }).instability ?? 0;
+        const newInstab = Math.min(5, curInstab + instabDelta);
+        await locals.pb.collection('nodes').update(params.id, { instability: newInstab, roll_due: newInstab > 0 });
+      }
+
+      for (const sub of submissions as { id: string }[]) {
+        await locals.pb.collection('submissions').delete(sub.id).catch(() => null);
+      }
+
       await locals.pb.collection('server_log').create({
         event_type: 'cycle_confirmed',
-        description: `Upkeep cycle confirmed — ${totalSP} SP logged this cycle`,
+        description: `Upkeep cycle confirmed — ${paidSP}/${effectiveUpkeep} SP paid (${outcome})${instabDelta > 0 ? ` — instability +${instabDelta}` : ''}`,
         actor,
         related_node: params.id
       });

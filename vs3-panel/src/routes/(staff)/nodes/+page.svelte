@@ -288,20 +288,7 @@
             {/if}
           </div>
 
-          <!-- Owner -->
-          <div>
-            <label for="node-owner" class="block text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground mb-2">
-              Owner Faction
-            </label>
-            <select id="node-owner" name="owner"
-              class="w-full px-4 py-2 rounded-md text-[14px] text-foreground focus:outline-none transition-colors"
-              style="background: #2c2518; border: 1px solid #3d3426;">
-              <option value="">Unowned</option>
-              {#each data.factions as f}
-                <option value={f.id}>{f.name}</option>
-              {/each}
-            </select>
-          </div>
+          <!-- Owner: nodes always start neutral — use Transfer Ownership to assign -->
 
           <!-- Base Upkeep -->
           <div>

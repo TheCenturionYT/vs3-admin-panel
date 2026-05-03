@@ -12,7 +12,6 @@ const createNodeSchema = z.object({
   name: z.string().min(1, 'Name is required.'),
   type: z.enum(NODE_TYPES, { message: 'Invalid node type.' }),
   tier: z.coerce.number().int().min(1).max(4),
-  owner: z.string().optional(),
   base_upkeep: z.coerce.number().min(0).optional(),
   has_road: z.enum(['true', 'false']).transform(v => v === 'true').optional(),
   road_note: z.string().optional(),
@@ -64,14 +63,12 @@ export const actions: Actions = {
   createNode: async ({ request, locals }) => {
     const data = await request.formData();
 
-    const rawOwner = data.get('owner') as string | null;
     const rawHasRoad = data.get('has_road') as string | null;
 
     const parsed = createNodeSchema.safeParse({
       name: data.get('name'),
       type: data.get('type'),
       tier: data.get('tier'),
-      owner: rawOwner || undefined,
       base_upkeep: data.get('base_upkeep') || undefined,
       has_road: rawHasRoad || 'false',
       road_note: data.get('road_note') || undefined,
@@ -91,7 +88,7 @@ export const actions: Actions = {
         name: parsed.data.name,
         type: parsed.data.type,
         tier: parsed.data.tier,
-        owner: parsed.data.owner || null,
+        owner: null,
         base_upkeep: parsed.data.base_upkeep ?? 0,
         has_road: parsed.data.has_road ?? false,
         road_note: parsed.data.road_note ?? '',
