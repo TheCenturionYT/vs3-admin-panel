@@ -4,7 +4,7 @@
 // Creates: submissions, submission_history, deadline_config, instability_rolls, job_run_log (if absent)
 // Seeds:   deadline_config default row (Saturday 23:59 UTC-5, is_active=true)
 migrate((db) => {
-    const dao = Dao(db);
+    const dao = new Dao(db);
     const STAFF = '@request.auth.role = "head_admin" || @request.auth.role = "staff"';
     const ADMIN = '@request.auth.role = "head_admin"';
 
@@ -152,7 +152,7 @@ migrate((db) => {
     }
 
 }, (db) => {
-    const dao = Dao(db);
+    const dao = new Dao(db);
     // Drop Phase 3 collections in reverse dependency order.
     // job_run_log is owned by the Phase 2 migration — do NOT drop it here.
     for (const name of [

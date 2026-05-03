@@ -671,9 +671,10 @@ export const actions: Actions = {
         actor,
         related_node: params.id
       });
-    } catch {
-      return fail(500, { action: 'confirmCycle', errors: { _global: ['Failed to confirm cycle.'] } });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return fail(500, { action: 'confirmCycle', errors: { _global: [`Failed to confirm cycle: ${msg}`] } });
     }
-    return { success: true, action: 'confirmCycle' };
+    redirect(303, `/nodes/${params.id}`);
   }
 };

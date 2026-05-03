@@ -456,14 +456,14 @@
             Total SP this cycle: <span class="font-semibold" style="color: #c4a45a;">{cycleTotalSP} SP</span>
           </span>
           <div class="flex items-center gap-2">
-            {#if cycleFullyPaid}
+            {#if (data.currentSubmissions ?? []).length > 0}
               <form method="POST" action="?/confirmCycle"
                 use:enhance={() => { confirmingCycle = true; return async ({ update }) => { await update(); confirmingCycle = false; }; }}>
                 <button type="submit" disabled={confirmingCycle}
                   class="flex items-center gap-2 px-3 py-1.5 rounded-md text-[13px] border transition-colors disabled:opacity-50"
-                  style="border-color: #3d6b3d; color: #90cc90; background: rgba(61,107,61,0.08);">
+                  style="border-color: #c4a45a; color: #c4a45a; background: rgba(196,164,90,0.08);">
                   {#if confirmingCycle}<Loader2 class="w-3 h-3 animate-spin" />{/if}
-                  Confirm Week Paid
+                  Push Submission
                 </button>
               </form>
             {/if}
@@ -479,6 +479,9 @@
             </button>
           </div>
         </div>
+      {/if}
+      {#if form?.action === 'confirmCycle' && form?.errors?._global}
+        <p class="text-[12px] mt-2" style="color: #e07840;">{form.errors._global[0]}</p>
       {/if}
     </div>
 
