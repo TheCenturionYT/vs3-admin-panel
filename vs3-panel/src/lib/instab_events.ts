@@ -47,11 +47,11 @@ export interface InstabEvent {
 }
 
 // === Node Type Alias Map ===
-// Ported from v1 lines 321–322: const NT_MAP={'Ranch':'Herd / Ranch','Harbor/River Landing':'Harbor / River Landing'};
-// Normalizes alternative node type strings to the canonical INSTAB_EVENTS node names.
+// v1.4.1 handbook: stored names now match event names directly ("Herd / Ranch", "Harbor").
+// Map retained for any legacy records still using old type strings.
 const NT_MAP: Record<string, string> = {
   'Ranch': 'Herd / Ranch',
-  'Harbor/River Landing': 'Harbor / River Landing',
+  'Harbor/River Landing': 'Harbor',
 };
 
 // Alias resolver — returns NT_MAP[t] if present, otherwise returns t unchanged.
@@ -165,12 +165,12 @@ export const INSTAB_EVENTS: InstabEvent[] = [
   { node: 'Military Node', name: 'Checkpoint Failure', desc: 'Tolls not being collected.', effect: '-50% SMD output this cycle.', outputPenalty: 50 },
   { node: 'Military Node', name: 'Bastion Panic', desc: 'Garrison hears attack rumors.', effect: 'Node Strained unless 50 SP paid.', spCost: 50 },
 
-  // --- Harbor / River Landing (5 events) ---
-  { node: 'Harbor / River Landing', name: 'Broken Dock Planks', desc: 'Docking area unsafe.', effect: 'Pay 10 SP or -25% output.', spCost: 10, outputPenalty: 25, choice: true },
-  { node: 'Harbor / River Landing', name: 'Lost Nets', desc: 'River gear lost.', effect: 'Lose one output bundle.', outputPenalty: 100 },
-  { node: 'Harbor / River Landing', name: 'Silted Channel', desc: 'Boats struggle to pass.', effect: 'Pay 15 SP or output trapped.', spCost: 15, outputPenalty: 50, choice: true },
-  { node: 'Harbor / River Landing', name: 'Dockside Fire', desc: 'Warehouses or boats damaged.', effect: 'Pay 30 SP or -50% output.', spCost: 30, outputPenalty: 50, choice: true },
-  { node: 'Harbor / River Landing', name: 'Major Storm Damage', desc: 'Storm wrecks docks.', effect: 'No output or pay 60 SP.', spCost: 60, outputPenalty: 100, choice: true },
+  // --- Harbor (5 events) ---
+  { node: 'Harbor', name: 'Broken Dock Planks', desc: 'Docking area unsafe.', effect: 'Pay 10 SP or -25% output.', spCost: 10, outputPenalty: 25, choice: true },
+  { node: 'Harbor', name: 'Lost Nets', desc: 'River gear lost.', effect: 'Lose one output bundle.', outputPenalty: 100 },
+  { node: 'Harbor', name: 'Silted Channel', desc: 'Boats struggle to pass.', effect: 'Pay 15 SP or output trapped.', spCost: 15, outputPenalty: 50, choice: true },
+  { node: 'Harbor', name: 'Dockside Fire', desc: 'Warehouses or boats damaged.', effect: 'Pay 30 SP or -50% output.', spCost: 30, outputPenalty: 50, choice: true },
+  { node: 'Harbor', name: 'Major Storm Damage', desc: 'Storm wrecks docks.', effect: 'No output or pay 60 SP.', spCost: 60, outputPenalty: 100, choice: true },
 ];
 
 // === pickEvent ===

@@ -4,16 +4,17 @@ import type { Actions, PageServerLoad } from './$types';
 import { calcUpkeep } from '$lib/upkeep';
 
 const NODE_TYPES = [
-  'Farm', 'Ranch', 'Orchard', 'Mine', 'Quarry', 'Clay Pit', 'Forest',
+  'Farm', 'Herd / Ranch', 'Orchard', 'Mine', 'Quarry', 'Clay Pit', 'Forest',
   'Lumber Mill', 'Resin Farm', 'Peat Bog', 'Salt Works', 'Workshop',
-  'Trade Post', 'Military Node', 'Harbor/River Landing'
+  'Trade Post', 'Military Node', 'Harbor'
 ] as const;
 
 // === Phase 3 Cost Constants ===
-// Repair costs from CLAUDE.md §VIII values (authoritative): T1=50, T2=100, T3=200, T4=300
+// Repair costs from Handbook §VIII (Suggested Repair SP): T1=50, T2=100, T3=200, T4=300
+// Note: §IX table shows 50/90/160/250 as "Repair Cost After Violent Capture" — confirm with admin if §IX values should take precedence
 const REPAIR_SP: Record<number, number> = { 1: 50, 2: 100, 3: 200, 4: 300 };
-// Upgrade costs from v1 code + CONTEXT.md T4 decision: T1→T2=60, T2→T3=140, T3→T4=500
-const UPGRADE_SP: Record<number, number> = { 1: 60, 2: 140, 3: 500 };
+// Upgrade costs from Handbook v1.4.1 §IX Tier table: T1→T2=100, T2→T3=300, T3→T4=600
+const UPGRADE_SP: Record<number, number> = { 1: 100, 2: 300, 3: 600 };
 const INSTAB_REDUCTION_SP = 40;
 
 function checkCaps(

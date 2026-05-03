@@ -6,9 +6,9 @@
   import InstabilityDot from '$lib/components/InstabilityDot.svelte';
 
   const NODE_TYPES = [
-    'Farm', 'Ranch', 'Orchard', 'Mine', 'Quarry', 'Clay Pit', 'Forest',
+    'Farm', 'Herd / Ranch', 'Orchard', 'Mine', 'Quarry', 'Clay Pit', 'Forest',
     'Lumber Mill', 'Resin Farm', 'Peat Bog', 'Salt Works', 'Workshop',
-    'Trade Post', 'Military Node', 'Harbor/River Landing'
+    'Trade Post', 'Military Node', 'Harbor'
   ] as const;
 
   const MIL_TIER_LABELS: Record<number, string> = {
