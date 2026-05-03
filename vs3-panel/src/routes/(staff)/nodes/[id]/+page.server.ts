@@ -684,8 +684,15 @@ export const actions: Actions = {
 
       const actor = (locals.pb.authStore.record as { username?: string } | null)?.username ?? '';
 
-      // Safely serialize snapshot — strip PocketBase SDK prototype to plain JSON
-      const snapshotData = JSON.parse(JSON.stringify(submissions));
+      // Snapshot: only keep essential fields to avoid PocketBase SDK serialization issues
+      const snapshotData = (submissions as Record<string, unknown>[]).map(s => ({
+        item_name: s.item_name ?? '',
+        category: s.category ?? '',
+        qty: s.qty ?? 1,
+        sp_value: s.sp_value ?? 0,
+        submission_type: s.submission_type ?? '',
+        staff_note: s.staff_note ?? ''
+      }));
 
       step = 'create-history';
       await locals.pb.collection('submission_history').create({
@@ -727,8 +734,15 @@ export const actions: Actions = {
         actor,
         related_node: params.id
       });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
+    } catch (e: unknown) {
+      let msg = e instanceof Error ? e.message : String(e);
+      // Expose PocketBase validation details if available
+      if (e && typeof e === 'object') {
+        const pb = e as { status?: number; data?: unknown; response?: { data?: unknown } };
+        if (pb.data) msg += ' | ' + JSON.stringify(pb.data);
+        else if (pb.response?.data) msg += ' | ' + JSON.stringify(pb.response.data);
+        if (pb.status) msg += ` (HTTP ${pb.status})`;
+      }
       return fail(500, { action: 'confirmCycle', errors: { _global: [`[${step}] ${msg}`] } });
     }
     redirect(303, `/nodes/${params.id}`);
