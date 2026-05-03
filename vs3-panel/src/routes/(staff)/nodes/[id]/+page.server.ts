@@ -649,9 +649,12 @@ export const actions: Actions = {
   },
 
   confirmCycle: async ({ locals, params }) => {
+    let step = 'fetch';
     try {
       const node = await locals.pb.collection('nodes').getOne(params.id);
       const factionId = (node as { owner?: string }).owner ?? '';
+
+      step = 'fetch-related';
       const [submissions, ownerFaction, ownerNodes, ownerWars] = await Promise.all([
         locals.pb.collection('submissions').getFullList({ filter: `node = "${params.id}"` }),
         factionId ? locals.pb.collection('factions').getOne(factionId).catch(() => null) : Promise.resolve(null),
@@ -681,6 +684,10 @@ export const actions: Actions = {
 
       const actor = (locals.pb.authStore.record as { username?: string } | null)?.username ?? '';
 
+      // Safely serialize snapshot — strip PocketBase SDK prototype to plain JSON
+      const snapshotData = JSON.parse(JSON.stringify(submissions));
+
+      step = 'create-history';
       await locals.pb.collection('submission_history').create({
         node: params.id,
         deadline_ts: new Date().toISOString(),
@@ -688,9 +695,10 @@ export const actions: Actions = {
         required_sp: effectiveUpkeep,
         outcome,
         instab_delta: instabDelta,
-        snapshot: submissions
+        snapshot: snapshotData
       });
 
+      step = 'update-instability';
       if (instabDelta > 0) {
         const curInstab = (node as { instability?: number }).instability ?? 0;
         const newInstab = Math.min(5, curInstab + instabDelta);
@@ -698,6 +706,7 @@ export const actions: Actions = {
       }
 
       // Apply upgrade tier bumps from this cycle's submissions
+      step = 'update-tier';
       const upgradeCount = (submissions as { submission_type: string }[])
         .filter(s => s.submission_type === 'upgrade').length;
       if (upgradeCount > 0) {
@@ -705,10 +714,12 @@ export const actions: Actions = {
         await locals.pb.collection('nodes').update(params.id, { tier: Math.min(4, curTier + upgradeCount) });
       }
 
+      step = 'delete-submissions';
       for (const sub of submissions as { id: string }[]) {
         await locals.pb.collection('submissions').delete(sub.id).catch(() => null);
       }
 
+      step = 'create-log';
       const tierNote = upgradeCount > 0 ? ` — tier upgraded` : '';
       await locals.pb.collection('server_log').create({
         event_type: 'cycle_confirmed',
@@ -718,7 +729,7 @@ export const actions: Actions = {
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      return fail(500, { action: 'confirmCycle', errors: { _global: [`Failed to confirm cycle: ${msg}`] } });
+      return fail(500, { action: 'confirmCycle', errors: { _global: [`[${step}] ${msg}`] } });
     }
     redirect(303, `/nodes/${params.id}`);
   }
