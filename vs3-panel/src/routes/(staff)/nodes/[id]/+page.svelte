@@ -75,7 +75,7 @@
   const selectedItem = $derived(data.spCatalogue?.find((i: { id: string }) => i.id === selectedItemId));
   const newSpValue = $derived(
     submissionType === 'upkeep' ? (selectedItem ? (selectedItem as { sp_value: number }).sp_value * qty : 0)
-    : submissionType === 'instability_reduction' ? 40
+    : submissionType === 'instability_reduction' ? -40
     : submissionType === 'repair' ? (data.repairCost ?? 0)
     : submissionType === 'upgrade' ? (data.upgradeCost ?? 0)
     : 0
@@ -1301,7 +1301,7 @@
         {:else if submissionType === 'instability_reduction'}
           <div class="mb-4 px-3 py-2 rounded-md text-[14px]" style="background: rgba(196,164,90,0.06); border: 1px solid rgba(196,164,90,0.15);">
             <span class="text-muted-foreground">Fixed cost = </span>
-            <span class="font-semibold" style="color: #c4a45a;">40 SP</span>
+            <span class="font-semibold" style="color: #e07840;">−40 SP</span>
           </div>
           {#if (data.node?.instability ?? 0) === 0}
             <div class="mb-4 px-3 py-2 rounded-md text-[13px]" style="background: rgba(180,160,50,0.1); border: 1px solid rgba(180,160,50,0.3); color: #d4c060;">

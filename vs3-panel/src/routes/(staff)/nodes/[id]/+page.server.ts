@@ -490,7 +490,7 @@ export const actions: Actions = {
       }
       item_name = 'Instability Reduction';
       category = 'special';
-      sp_value = INSTAB_REDUCTION_SP;
+      sp_value = -INSTAB_REDUCTION_SP;
     } else if (submission_type === 'repair') {
       if (!REPAIR_SP[tier]) return fail(400, { action: 'logSubmission', errors: { _global: [`No repair cost defined for tier ${tier}.`] } });
       item_name = `Repair — T${tier}`;
