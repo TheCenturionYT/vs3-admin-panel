@@ -17,6 +17,22 @@ const REPAIR_SP: Record<number, number> = { 1: 50, 2: 100, 3: 200, 4: 300 };
 const UPGRADE_SP: Record<number, number> = { 1: 100, 2: 300, 3: 600 };
 const INSTAB_REDUCTION_SP = 40;
 
+function computeNextDeadline(dayOfWeek: number, hour: number, minute: number, tzOffset: number): Date {
+  const tzMs = tzOffset * 60 * 60 * 1000;
+  const now = new Date();
+  const localNow = new Date(now.getTime() + tzMs);
+  const currentDay = localNow.getUTCDay();
+  let daysUntil = (dayOfWeek - currentDay + 7) % 7;
+  if (daysUntil === 0) {
+    const passedMinutes = localNow.getUTCHours() * 60 + localNow.getUTCMinutes();
+    if (passedMinutes >= hour * 60 + minute) daysUntil = 7;
+  }
+  const dl = new Date(localNow.getTime());
+  dl.setUTCDate(dl.getUTCDate() + daysUntil);
+  dl.setUTCHours(hour, minute, 0, 0);
+  return new Date(dl.getTime() - tzMs);
+}
+
 function checkCaps(
   existing: Array<{ category: string; sp_value: number }>,
   newCategory: string,
@@ -103,7 +119,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   const ownerId = node.owner as string | null;
 
   // Parallel fetch: ownership history, node log, all factions, owner's nodes, owner's active wars,
-  // Phase 3: current submissions, submission history, instability rolls, sp_catalogue
+  // Phase 3: current submissions, submission history, instability rolls, sp_catalogue, deadline_config
   const [
     ownershipHistory,
     nodeLog,
@@ -113,7 +129,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     currentSubmissions,
     cycleHistory,
     instabilityRolls,
-    spCatalogue
+    spCatalogue,
+    deadlineConfigs
   ] = await Promise.all([
     locals.pb.collection('node_ownership_history').getFullList({
       filter: `node = "${params.id}"`,
@@ -168,10 +185,26 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     locals.pb.collection('sp_catalogue').getFullList({
       sort: 'category,name',
       fields: 'id,name,category,sp_value'
+    }).catch(() => []),
+
+    // Deadline config for next deadline display
+    locals.pb.collection('deadline_config').getFullList({
+      filter: 'is_active = true',
+      fields: 'day_of_week,hour,minute,timezone_offset'
     }).catch(() => [])
   ]);
 
   const ownerFaction = factions.find((f: Record<string, unknown>) => f.id === ownerId) ?? null;
+
+  const dlCfg = (deadlineConfigs as Record<string, unknown>[])[0] ?? null;
+  const nextDeadline = dlCfg
+    ? computeNextDeadline(
+        dlCfg.day_of_week as number,
+        dlCfg.hour as number,
+        dlCfg.minute as number,
+        dlCfg.timezone_offset as number
+      ).toISOString()
+    : null;
 
   // Effective upkeep — never stored, always computed at read time (CLAUDE.md constraint)
   const effectiveUpkeep = calcUpkeep(
@@ -235,6 +268,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     })),
     // Phase 3 data
     effectiveUpkeep,
+    nextDeadline,
     repairCost: REPAIR_SP[tier] ?? 0,
     upgradeCost: UPGRADE_SP[tier] ?? 0,
     currentSubmissions: (currentSubmissions as Record<string, unknown>[]).map((s: Record<string, unknown>) => ({
@@ -403,6 +437,8 @@ export const actions: Actions = {
       submission_type: formData.get('submission_type'),
       item: formData.get('item') || undefined,
       qty: formData.get('qty') || undefined,
+      custom_name: formData.get('custom_name') || undefined,
+      custom_sp: formData.get('custom_sp') || undefined,
       staff_note: formData.get('staff_note') || undefined
     });
     if (!parsed.success) {
@@ -489,9 +525,8 @@ export const actions: Actions = {
         if (cur > 0) {
           await locals.pb.collection('nodes').update(params.id, { instability: cur - 1 });
         }
-      } else if (submission_type === 'upgrade') {
-        await locals.pb.collection('nodes').update(params.id, { tier: tier + 1 });
       }
+      // Note: upgrade tier increment happens in confirmCycle, not here
     } catch {
       return fail(500, { action: 'logSubmission', errors: { _global: ['Failed to save submission.'] } });
     }
@@ -662,13 +697,22 @@ export const actions: Actions = {
         await locals.pb.collection('nodes').update(params.id, { instability: newInstab, roll_due: newInstab > 0 });
       }
 
+      // Apply upgrade tier bumps from this cycle's submissions
+      const upgradeCount = (submissions as { submission_type: string }[])
+        .filter(s => s.submission_type === 'upgrade').length;
+      if (upgradeCount > 0) {
+        const curTier = (node as { tier?: number }).tier ?? 1;
+        await locals.pb.collection('nodes').update(params.id, { tier: Math.min(4, curTier + upgradeCount) });
+      }
+
       for (const sub of submissions as { id: string }[]) {
         await locals.pb.collection('submissions').delete(sub.id).catch(() => null);
       }
 
+      const tierNote = upgradeCount > 0 ? ` — tier upgraded` : '';
       await locals.pb.collection('server_log').create({
         event_type: 'cycle_confirmed',
-        description: `Upkeep cycle confirmed — ${paidSP}/${effectiveUpkeep} SP paid (${outcome})${instabDelta > 0 ? ` — instability +${instabDelta}` : ''}`,
+        description: `Upkeep cycle confirmed — ${paidSP}/${effectiveUpkeep} SP paid (${outcome})${instabDelta > 0 ? ` — instability +${instabDelta}` : ''}${tierNote}`,
         actor,
         related_node: params.id
       });

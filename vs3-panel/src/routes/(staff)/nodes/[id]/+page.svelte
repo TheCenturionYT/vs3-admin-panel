@@ -116,7 +116,13 @@
     effectiveUpkeep > 0 ? Math.min(100, Math.round(upkeepPaidSP / effectiveUpkeep * 100)) : 0
   );
   const cycleFullyPaid = $derived(effectiveUpkeep > 0 && upkeepPaidSP >= effectiveUpkeep);
+  // Reserve = net SP this cycle minus upkeep obligation (repair/upgrade costs already negative in cycleTotalSP)
+  const reserveSP = $derived(Math.max(0, cycleTotalSP - (isNeutral ? 0 : effectiveUpkeep)));
   let confirmingCycle = $state(false);
+
+  function formatDeadline(iso: string): string {
+    try { return format(new Date(iso), 'EEE, MMM d'); } catch { return '—'; }
+  }
 
   // === Submission modal label ===
   const submitLabel = $derived(
@@ -276,6 +282,25 @@
           </a>
         {:else}
           <span class="text-[14px] text-muted-foreground">Unowned</span>
+        {/if}
+        <!-- Paid status + deadline -->
+        {#if data.node.ownerId && effectiveUpkeep > 0}
+          {#if cycleFullyPaid}
+            <span class="px-2 py-0.5 rounded text-[11px] font-semibold"
+                  style="background: rgba(61,107,61,0.2); border: 1px solid rgba(61,107,61,0.3); color: #90cc90;">
+              ✓ Paid
+            </span>
+          {:else}
+            <span class="px-2 py-0.5 rounded text-[11px] font-semibold"
+                  style="background: rgba(139,43,43,0.2); border: 1px solid rgba(139,43,43,0.3); color: #ff9999;">
+              ✗ Unpaid
+            </span>
+          {/if}
+          {#if data.nextDeadline}
+            <span class="text-[12px]" style="color: #8b7d65;">
+              Deadline: {formatDeadline(data.nextDeadline)}
+            </span>
+          {/if}
         {/if}
       </div>
     </div>
@@ -448,6 +473,24 @@
             </div>
             {#if cycleFullyPaid}
               <p class="text-[11px] mt-1 font-semibold" style="color: #90cc90;">✓ Upkeep requirement met for this cycle</p>
+            {/if}
+            <!-- Reserve bar: surplus after upkeep obligation is covered -->
+            {#if reserveSP > 0}
+              <div class="mt-2">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-[11px] text-muted-foreground">Reserve surplus</span>
+                  <span class="text-[11px] font-semibold" style="color: #88bbdd;">+{reserveSP} SP</span>
+                </div>
+                <div class="relative w-full rounded h-1.5 overflow-hidden" style="background: #2c2518;">
+                  <div class="h-full rounded transition-all"
+                       style="width: {Math.min(100, Math.round(reserveSP / effectiveUpkeep * 100))}%; background: #3d6b8a;">
+                  </div>
+                </div>
+              </div>
+            {:else if cycleTotalSP < effectiveUpkeep && (data.currentSubmissions ?? []).length > 0}
+              <p class="text-[11px] mt-1" style="color: #e07840;">
+                {effectiveUpkeep - cycleTotalSP} SP short of upkeep requirement
+              </p>
             {/if}
           </div>
         {/if}
