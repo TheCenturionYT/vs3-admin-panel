@@ -504,6 +504,16 @@ export const actions: Actions = {
     } else if (submission_type === 'upgrade') {
       if (tier >= 4) return fail(400, { action: 'logSubmission', errors: { _global: ['Node is already at maximum tier (T4).'] } });
       if (!UPGRADE_SP[tier]) return fail(400, { action: 'logSubmission', errors: { _global: [`No upgrade cost defined for tier ${tier}.`] } });
+      // Block duplicate upgrade submissions — only one allowed at a time per node.
+      // Multiple upgrades in the queue is the #1 cause of unexpected tier jumps.
+      const existingUpgrades = await locals.pb.collection('submissions').getFullList({
+        filter: `node = "${params.id}" && submission_type = "upgrade"`,
+        fields: 'id,item_name'
+      }).catch(() => []);
+      if (existingUpgrades.length > 0) {
+        const existing = (existingUpgrades[0] as { item_name: string }).item_name;
+        return fail(400, { action: 'logSubmission', errors: { _global: [`An upgrade submission ("${existing}") is already queued. Remove it first or push the current cycle.`] } });
+      }
       item_name = `Upgrade — T${tier} → T${Number(tier) + 1}`;
       category = 'special';
       sp_value = -UPGRADE_SP[tier];
@@ -814,6 +824,16 @@ export const actions: Actions = {
 
       step = 'delete-submissions';
       for (const sub of submissions as { id: string }[]) {
+        await locals.pb.collection('submissions').delete(sub.id).catch(() => null);
+      }
+      // Second-pass cleanup: catch any submissions that slipped through (e.g., created
+      // concurrently while confirmCycle was running). This makes the delete idempotent.
+      step = 'delete-submissions-cleanup';
+      const remaining = await locals.pb.collection('submissions').getFullList({
+        filter: `node = "${params.id}"`,
+        fields: 'id'
+      }).catch(() => []);
+      for (const sub of remaining as { id: string }[]) {
         await locals.pb.collection('submissions').delete(sub.id).catch(() => null);
       }
 
