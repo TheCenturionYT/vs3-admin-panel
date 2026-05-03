@@ -6,6 +6,8 @@
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
+  const isHeadAdmin = data.user?.role === 'head_admin';
+
   // Filter state
   let search = $state('');
   let debouncedSearch = $state('');
@@ -18,18 +20,37 @@
   let showAddModal = $state(false);
   let saving = $state(false);
 
+  // Edit/delete state (head admin only)
+  type LogEntry = typeof data.logEntries[number];
+  let editingEntry = $state<LogEntry | null>(null);
+  let editDesc = $state('');
+  let editFaction = $state('');
+  let editNode = $state('');
+  let editSaving = $state(false);
+  let deletingEntryId = $state('');
+  let deleteDialogOpen = $state(false);
+
   // Debounce text search 300ms
   $effect(() => {
     const t = setTimeout(() => { debouncedSearch = search; }, 300);
     return () => clearTimeout(t);
   });
 
-  // Close modal on success
+  // Close modals on success
   $effect(() => {
     if (form?.success) {
-      showAddModal = false;
+      if (form.action === 'addManualEntry') showAddModal = false;
+      if (form.action === 'editLogEntry') { editingEntry = null; }
+      if (form.action === 'deleteLogEntry') { deleteDialogOpen = false; deletingEntryId = ''; }
     }
   });
+
+  function openEdit(entry: LogEntry) {
+    editingEntry = entry;
+    editDesc = entry.description;
+    editFaction = entry.related_faction ?? '';
+    editNode = entry.related_node ?? '';
+  }
 
   // Derived filtered + sorted entries
   let filteredEntries = $derived((() => {
@@ -57,7 +78,10 @@
     war_event: '#e07840',
     diplomacy_event: '#c4a45a',
     ownership_transfer: '#e07840',
-    manual_entry: '#8b7d65'
+    manual_entry: '#8b7d65',
+    cycle_confirmed: '#90cc90',
+    instability_event: '#ff9999',
+    upkeep_payment: '#c4a45a'
   };
 
   const EVENT_TYPE_LABELS: Record<string, string> = {
@@ -66,7 +90,10 @@
     war_event: 'War Event',
     diplomacy_event: 'Diplomacy Event',
     ownership_transfer: 'Ownership Transfer',
-    manual_entry: 'Manual Entry'
+    manual_entry: 'Manual Entry',
+    cycle_confirmed: 'Cycle Confirmed',
+    instability_event: 'Instability Event',
+    upkeep_payment: 'Upkeep Payment'
   };
 
   function formatTime(dateStr: string): string {
@@ -131,6 +158,9 @@
     <option value="diplomacy_event">Diplomacy Event</option>
     <option value="ownership_transfer">Ownership Transfer</option>
     <option value="manual_entry">Manual Entry</option>
+    <option value="cycle_confirmed">Cycle Confirmed</option>
+    <option value="instability_event">Instability Event</option>
+    <option value="upkeep_payment">Upkeep Payment</option>
   </select>
 
   <!-- Faction filter -->
@@ -208,6 +238,7 @@
           <th class="text-left px-4 py-2 text-[11px] font-semibold uppercase text-muted-foreground" style="letter-spacing: 0.06em;">Description</th>
           <th class="text-left px-4 py-2 text-[11px] font-semibold uppercase text-muted-foreground" style="letter-spacing: 0.06em; width: 160px;">Related Faction</th>
           <th class="text-left px-4 py-2 text-[11px] font-semibold uppercase text-muted-foreground" style="letter-spacing: 0.06em; width: 120px;">Actor</th>
+          {#if isHeadAdmin}<th class="px-4 py-2 text-[11px]" style="width: 110px;"></th>{/if}
         </tr>
       </thead>
       <tbody>
@@ -233,6 +264,26 @@
             <td class="px-4 py-2 text-[14px] text-muted-foreground align-top">
               {entry.actor}
             </td>
+            {#if isHeadAdmin}
+              <td class="px-4 py-2 align-top">
+                <div class="flex gap-1">
+                  <button type="button" onclick={() => openEdit(entry)}
+                    class="px-2 py-0.5 rounded text-[11px] border transition-colors"
+                    style="border-color: #3d5a8b; color: #88bbdd;"
+                    onmouseover={(e) => (e.currentTarget as HTMLButtonElement).style.background = 'rgba(61,90,139,0.12)'}
+                    onmouseout={(e) => (e.currentTarget as HTMLButtonElement).style.background = 'transparent'}>
+                    Edit
+                  </button>
+                  <button type="button" onclick={() => { deletingEntryId = entry.id; deleteDialogOpen = true; }}
+                    class="px-2 py-0.5 rounded text-[11px] border transition-colors"
+                    style="border-color: #8b2b2b; color: #ff9999;"
+                    onmouseover={(e) => (e.currentTarget as HTMLButtonElement).style.background = 'rgba(139,43,43,0.12)'}
+                    onmouseout={(e) => (e.currentTarget as HTMLButtonElement).style.background = 'transparent'}>
+                    Del
+                  </button>
+                </div>
+              </td>
+            {/if}
           </tr>
         {/each}
       </tbody>
@@ -324,6 +375,107 @@
             style="border-color: #c4a45a; color: #c4a45a;">
             {#if saving}<Loader2 class="w-4 h-4 animate-spin" />{/if}
             Add Entry
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+{/if}
+
+<!-- ======================== EDIT LOG ENTRY MODAL ======================== -->
+{#if editingEntry}
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(0,0,0,0.78);"
+    role="dialog" aria-modal="true">
+    <div class="w-full max-w-[600px] rounded-lg p-6" style="background: #231d14; border: 1px solid rgba(196,164,90,0.28);">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-[15px] font-semibold text-foreground">Edit Log Entry</h2>
+        <button type="button" onclick={() => editingEntry = null}
+          class="text-muted-foreground hover:text-foreground transition-colors">&#x2715;</button>
+      </div>
+
+      <form method="POST" action="?/editLogEntry"
+        use:enhance={() => { editSaving = true; return async ({ update }) => { await update({ reset: false }); editSaving = false; }; }}>
+        <input type="hidden" name="id" value={editingEntry.id} />
+
+        <div class="mb-4">
+          <label class="block text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground mb-2">
+            Description <span style="color: #ff9999;">*</span>
+          </label>
+          <textarea name="description" rows={4} required bind:value={editDesc}
+            class="w-full px-4 py-2 rounded-md text-[14px] text-foreground focus:outline-none transition-colors resize-y"
+            style="background: #2c2518; border: 1px solid #3d3426;"></textarea>
+        </div>
+
+        <div class="mb-4">
+          <label class="block text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground mb-2">
+            Related Faction <span class="font-normal normal-case" style="color: #8b7d65;">(optional)</span>
+          </label>
+          <select name="related_faction" bind:value={editFaction}
+            class="w-full px-4 py-2 rounded-md text-[14px] text-foreground focus:outline-none transition-colors"
+            style="background: #2c2518; border: 1px solid #3d3426;">
+            <option value="">No related faction</option>
+            {#each data.factions as f}
+              <option value={f.id}>{f.name}</option>
+            {/each}
+          </select>
+        </div>
+
+        <div class="mb-6">
+          <label class="block text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground mb-2">
+            Related Node <span class="font-normal normal-case" style="color: #8b7d65;">(optional)</span>
+          </label>
+          <select name="related_node" bind:value={editNode}
+            class="w-full px-4 py-2 rounded-md text-[14px] text-foreground focus:outline-none transition-colors"
+            style="background: #2c2518; border: 1px solid #3d3426;">
+            <option value="">No related node</option>
+            {#each data.nodes as n}
+              <option value={n.id}>{n.name}</option>
+            {/each}
+          </select>
+        </div>
+
+        {#if form?.action === 'editLogEntry' && (form?.errors as Record<string, string[]> | undefined)?._global}
+          <div class="mb-4 px-4 py-2 rounded-md text-[14px]" style="background: rgba(139,43,43,0.12); border: 1px solid rgba(200,68,68,0.30); color: #ff9999;">
+            {(form!.errors as Record<string, string[]>)._global[0]}
+          </div>
+        {/if}
+
+        <div class="flex gap-2 justify-end">
+          <button type="button" onclick={() => editingEntry = null}
+            class="px-4 py-2 rounded-md text-[14px] border border-border text-muted-foreground hover:text-foreground transition-colors">
+            Cancel
+          </button>
+          <button type="submit" disabled={editSaving}
+            class="flex items-center gap-2 px-4 py-2 rounded-md text-[14px] border transition-colors disabled:opacity-50"
+            style="border-color: #c4a45a; color: #c4a45a;">
+            {#if editSaving}<Loader2 class="w-4 h-4 animate-spin" />{/if}
+            Save Changes
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+{/if}
+
+<!-- ======================== DELETE LOG ENTRY DIALOG ======================== -->
+{#if deleteDialogOpen}
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(0,0,0,0.78);"
+    role="dialog" aria-modal="true">
+    <div class="w-full max-w-[420px] rounded-lg p-6" style="background: #231d14; border: 1px solid rgba(196,164,90,0.28);">
+      <h2 class="text-[15px] font-semibold text-foreground mb-3">Delete Log Entry</h2>
+      <p class="text-[14px] text-muted-foreground mb-6">
+        Permanently delete this log entry? This cannot be undone.
+      </p>
+      <form method="POST" action="?/deleteLogEntry"
+        use:enhance={() => { return async ({ update }) => { await update(); }; }}>
+        <input type="hidden" name="id" value={deletingEntryId} />
+        <div class="flex gap-2 justify-end">
+          <button type="button" onclick={() => { deleteDialogOpen = false; deletingEntryId = ''; }}
+            class="px-4 py-2 rounded-md text-[14px] border border-border text-muted-foreground hover:text-foreground transition-colors">Cancel</button>
+          <button type="submit"
+            class="px-4 py-2 rounded-md text-[14px] border transition-colors"
+            style="border-color: #8b2b2b; color: #ff9999;">
+            Delete Entry
           </button>
         </div>
       </form>

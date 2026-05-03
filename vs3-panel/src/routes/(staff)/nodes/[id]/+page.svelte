@@ -116,9 +116,30 @@
     effectiveUpkeep > 0 ? Math.min(100, Math.round(upkeepPaidSP / effectiveUpkeep * 100)) : 0
   );
   const cycleFullyPaid = $derived(effectiveUpkeep > 0 && upkeepPaidSP >= effectiveUpkeep);
-  // Reserve = net SP this cycle minus upkeep obligation (repair/upgrade costs already negative in cycleTotalSP)
-  const reserveSP = $derived(Math.max(0, cycleTotalSP - (isNeutral ? 0 : effectiveUpkeep)));
+  // Reserve = upkeep overpayment this cycle, capped at 1× effectiveUpkeep (max banked reserve)
+  // Only upkeep-type submissions count toward reserve; repair/upgrade are separate costs
+  const STANDARD_UPKEEP: Record<number, number> = { 1: 40, 2: 80, 3: 160, 4: 240 };
+  const reserveRaw = $derived(Math.max(0, upkeepPaidSP - (isNeutral ? 0 : effectiveUpkeep)));
+  const reserveSP  = $derived(Math.min(effectiveUpkeep, reserveRaw));
+  // Amount above the cap that won't carry over
+  const overCapSP  = $derived(Math.max(0, reserveRaw - effectiveUpkeep));
   let confirmingCycle = $state(false);
+  let expandedCycles = $state<Set<string>>(new Set());
+
+  // Edit modal reactive tier → auto-upkeep
+  let editTier = $state(data.node.tier);
+  let editBaseUpkeep = $state(STANDARD_UPKEEP[data.node.tier] ?? data.node.base_upkeep ?? 0);
+  $effect(() => { editBaseUpkeep = STANDARD_UPKEEP[editTier] ?? 0; });
+
+  // Cycle history delete state
+  let deletingCycleId = $state('');
+  let deleteCycleDialogOpen = $state(false);
+
+  function toggleCycle(id: string) {
+    const next = new Set(expandedCycles);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    expandedCycles = next;
+  }
 
   function formatDeadline(iso: string): string {
     try { return format(new Date(iso), 'EEE, MMM d'); } catch { return '—'; }
@@ -132,6 +153,14 @@
     : submissionType === 'custom' ? 'Log Custom'
     : 'Log Submission'
   );
+
+  // Reset edit modal state when opened
+  $effect(() => {
+    if (showEditModal) {
+      editTier = data.node.tier;
+      // editBaseUpkeep will be auto-set by the $effect watching editTier
+    }
+  });
 
   // === $effect for form feedback / modal close ===
   $effect(() => {
@@ -154,8 +183,9 @@
       if (form.action === 'resolveEvent') {
         lastRoll = null;
       }
-      if (form.action === 'confirmCycle') {
-        // no extra state to clear
+      if (form.action === 'deleteCycleHistory') {
+        deleteCycleDialogOpen = false;
+        deletingCycleId = '';
       }
     }
   });
@@ -283,7 +313,7 @@
         {:else}
           <span class="text-[14px] text-muted-foreground">Unowned</span>
         {/if}
-        <!-- Paid status + deadline -->
+        <!-- Paid status + deadline + reserve -->
         {#if data.node.ownerId && effectiveUpkeep > 0}
           {#if cycleFullyPaid}
             <span class="px-2 py-0.5 rounded text-[11px] font-semibold"
@@ -299,6 +329,21 @@
           {#if data.nextDeadline}
             <span class="text-[12px]" style="color: #8b7d65;">
               Deadline: {formatDeadline(data.nextDeadline)}
+            </span>
+          {/if}
+          {#if reserveSP > 0}
+            <span class="flex items-center gap-1.5 text-[12px]" style="color: #88bbdd;">
+              <span>Reserve:</span>
+              <span class="inline-flex rounded overflow-hidden" style="width: 60px; height: 6px; background: #2c2518;">
+                <span class="h-full" style="width: {Math.min(100, Math.round(reserveSP/effectiveUpkeep*100))}%; background: #3d6b8a;"></span>
+              </span>
+              <span class="font-semibold">{reserveSP} / {effectiveUpkeep} SP</span>
+            </span>
+          {/if}
+          {#if overCapSP > 0}
+            <span class="px-2 py-0.5 rounded text-[11px] font-semibold"
+                  style="background: rgba(200,100,40,0.15); border: 1px solid rgba(200,100,40,0.3); color: #e07840;">
+              ⚠ {overCapSP} SP over cap
             </span>
           {/if}
         {/if}
@@ -474,22 +519,27 @@
             {#if cycleFullyPaid}
               <p class="text-[11px] mt-1 font-semibold" style="color: #90cc90;">✓ Upkeep requirement met for this cycle</p>
             {/if}
-            <!-- Reserve bar: surplus after upkeep obligation is covered -->
-            {#if reserveSP > 0}
+            <!-- Reserve bar: upkeep overpayment, capped at 1× effective upkeep -->
+            {#if reserveSP > 0 || overCapSP > 0}
               <div class="mt-2">
                 <div class="flex items-center justify-between mb-1">
-                  <span class="text-[11px] text-muted-foreground">Reserve surplus</span>
-                  <span class="text-[11px] font-semibold" style="color: #88bbdd;">+{reserveSP} SP</span>
+                  <span class="text-[11px] text-muted-foreground">Reserve (banked upkeep)</span>
+                  <span class="text-[11px] font-semibold" style="color: #88bbdd;">{reserveSP} / {effectiveUpkeep} SP cap</span>
                 </div>
                 <div class="relative w-full rounded h-1.5 overflow-hidden" style="background: #2c2518;">
                   <div class="h-full rounded transition-all"
                        style="width: {Math.min(100, Math.round(reserveSP / effectiveUpkeep * 100))}%; background: #3d6b8a;">
                   </div>
                 </div>
+                {#if overCapSP > 0}
+                  <p class="text-[11px] mt-1" style="color: #e07840;">
+                    ⚠ {overCapSP} SP over the reserve cap — excess won't carry over after push
+                  </p>
+                {/if}
               </div>
-            {:else if cycleTotalSP < effectiveUpkeep && (data.currentSubmissions ?? []).length > 0}
+            {:else if upkeepPaidSP < effectiveUpkeep && (data.currentSubmissions ?? []).length > 0}
               <p class="text-[11px] mt-1" style="color: #e07840;">
-                {effectiveUpkeep - cycleTotalSP} SP short of upkeep requirement
+                {effectiveUpkeep - upkeepPaidSP} SP short of upkeep requirement
               </p>
             {/if}
           </div>
@@ -1022,19 +1072,32 @@
         <table class="w-full text-[14px]">
           <thead>
             <tr style="border-bottom: 1px solid #3d3426;">
-              <th class="text-left px-0 py-1.5 text-[11px] font-semibold uppercase text-muted-foreground" style="letter-spacing: 0.06em;">Deadline</th>
+              <th class="text-left px-0 py-1.5 text-[11px] font-semibold uppercase text-muted-foreground" style="letter-spacing: 0.06em; width: 1rem;"></th>
+              <th class="text-left px-2 py-1.5 text-[11px] font-semibold uppercase text-muted-foreground" style="letter-spacing: 0.06em;">Deadline</th>
               <th class="text-right px-3 py-1.5 text-[11px] font-semibold uppercase text-muted-foreground" style="letter-spacing: 0.06em;">Paid</th>
               <th class="text-right px-3 py-1.5 text-[11px] font-semibold uppercase text-muted-foreground" style="letter-spacing: 0.06em;">Required</th>
               <th class="text-right px-3 py-1.5 text-[11px] font-semibold uppercase text-muted-foreground" style="letter-spacing: 0.06em;">Payment %</th>
               <th class="text-left px-3 py-1.5 text-[11px] font-semibold uppercase text-muted-foreground" style="letter-spacing: 0.06em;">Outcome</th>
               <th class="text-right px-3 py-1.5 text-[11px] font-semibold uppercase text-muted-foreground" style="letter-spacing: 0.06em;">Instab Δ</th>
+              {#if isHeadAdmin}<th class="px-3 py-1.5 text-[11px]" style="width: 60px;"></th>{/if}
             </tr>
           </thead>
           <tbody>
             {#each (data.cycleHistory ?? []) as cycle (cycle.id)}
               {@const payPct = cycle.required_sp > 0 ? Math.round(cycle.paid_sp / cycle.required_sp * 100) : 0}
-              <tr style="border-bottom: 1px solid rgba(196,164,90,0.06);">
-                <td class="px-0 py-2 text-[11px] text-muted-foreground whitespace-nowrap">{formatDate(cycle.deadline_ts)}</td>
+              {@const isExpanded = expandedCycles.has(cycle.id)}
+              {@const snapshotItems = Array.isArray(cycle.snapshot) ? cycle.snapshot as Array<{ item_name: string; category: string; qty: number; sp_value: number; submission_type: string; staff_note?: string }> : null}
+              <!-- Summary row -->
+              <tr
+                style="border-bottom: {isExpanded ? 'none' : '1px solid rgba(196,164,90,0.06)'}; cursor: pointer;"
+                onclick={() => toggleCycle(cycle.id)}
+                onmouseover={(e) => (e.currentTarget as HTMLTableRowElement).style.background = 'rgba(196,164,90,0.04)'}
+                onmouseout={(e) => (e.currentTarget as HTMLTableRowElement).style.background = 'transparent'}
+              >
+                <td class="px-0 py-2 text-[11px] text-muted-foreground text-center" style="user-select:none;">
+                  {isExpanded ? '▾' : '▸'}
+                </td>
+                <td class="px-2 py-2 text-[11px] text-muted-foreground whitespace-nowrap">{formatDate(cycle.deadline_ts)}</td>
                 <td class="px-3 py-2 text-[14px] text-foreground text-right">{cycle.paid_sp} SP</td>
                 <td class="px-3 py-2 text-[14px] text-muted-foreground text-right">{cycle.required_sp} SP</td>
                 <td class="px-3 py-2 text-right">
@@ -1050,7 +1113,63 @@
                     +{cycle.instab_delta}
                   </span>
                 </td>
+                {#if isHeadAdmin}
+                  <td class="px-3 py-2 text-right" onclick={(e) => e.stopPropagation()}>
+                    <button type="button"
+                      onclick={() => { deletingCycleId = cycle.id; deleteCycleDialogOpen = true; }}
+                      class="px-2 py-0.5 rounded text-[11px] border transition-colors"
+                      style="border-color: #8b2b2b; color: #ff9999;"
+                      onmouseover={(e) => (e.currentTarget as HTMLButtonElement).style.background = 'rgba(139,43,43,0.12)'}
+                      onmouseout={(e) => (e.currentTarget as HTMLButtonElement).style.background = 'transparent'}>
+                      Del
+                    </button>
+                  </td>
+                {/if}
               </tr>
+              <!-- Expanded detail row -->
+              {#if isExpanded}
+                <tr style="border-bottom: 1px solid rgba(196,164,90,0.06);">
+                  <td></td>
+                  <td colspan="6" class="px-2 pb-3 pt-1">
+                    {#if snapshotItems && snapshotItems.length > 0}
+                      <table class="w-full text-[13px] mt-1" style="border: 1px solid #3d3426; border-radius: 4px; overflow: hidden;">
+                        <thead>
+                          <tr style="background: rgba(196,164,90,0.06); border-bottom: 1px solid #3d3426;">
+                            <th class="text-left px-3 py-1.5 text-[10px] font-semibold uppercase text-muted-foreground" style="letter-spacing: 0.06em;">Item</th>
+                            <th class="text-left px-3 py-1.5 text-[10px] font-semibold uppercase text-muted-foreground" style="letter-spacing: 0.06em;">Category</th>
+                            <th class="text-right px-3 py-1.5 text-[10px] font-semibold uppercase text-muted-foreground" style="letter-spacing: 0.06em;">Qty</th>
+                            <th class="text-right px-3 py-1.5 text-[10px] font-semibold uppercase text-muted-foreground" style="letter-spacing: 0.06em;">SP</th>
+                            <th class="text-left px-3 py-1.5 text-[10px] font-semibold uppercase text-muted-foreground" style="letter-spacing: 0.06em;">Type</th>
+                            <th class="text-left px-3 py-1.5 text-[10px] font-semibold uppercase text-muted-foreground" style="letter-spacing: 0.06em;">Note</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {#each snapshotItems as item, idx}
+                            <tr style="border-bottom: {idx < snapshotItems.length - 1 ? '1px solid rgba(196,164,90,0.06)' : 'none'};">
+                              <td class="px-3 py-1.5 text-[13px] text-foreground">{item.item_name}</td>
+                              <td class="px-3 py-1.5 text-[13px] text-muted-foreground">{item.category}</td>
+                              <td class="px-3 py-1.5 text-[13px] text-muted-foreground text-right">{item.qty}</td>
+                              <td class="px-3 py-1.5 text-right">
+                                <span class="font-semibold" style="color: {item.sp_value < 0 ? '#e07840' : '#c4a45a'};">{item.sp_value} SP</span>
+                              </td>
+                              <td class="px-3 py-1.5">
+                                <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold" style={typeBadgeStyle(item.submission_type)}>
+                                  {item.submission_type === 'instability_reduction' ? 'Instab. Red.' : item.submission_type}
+                                </span>
+                              </td>
+                              <td class="px-3 py-1.5 text-[12px] text-muted-foreground italic">
+                                {item.staff_note ? item.staff_note.slice(0, 50) + (item.staff_note.length > 50 ? '…' : '') : '—'}
+                              </td>
+                            </tr>
+                          {/each}
+                        </tbody>
+                      </table>
+                    {:else}
+                      <p class="text-[12px] text-muted-foreground italic py-2">No item detail recorded for this cycle.</p>
+                    {/if}
+                  </td>
+                </tr>
+              {/if}
             {/each}
           </tbody>
         </table>
@@ -1342,6 +1461,32 @@
   </div>
 {/if}
 
+<!-- ======================== DELETE CYCLE HISTORY DIALOG ======================== -->
+{#if deleteCycleDialogOpen}
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(0,0,0,0.78);"
+    role="dialog" aria-modal="true">
+    <div class="w-full max-w-[420px] rounded-lg p-6" style="background: #231d14; border: 1px solid rgba(196,164,90,0.28);">
+      <h2 class="text-[15px] font-semibold text-foreground mb-3">Delete Cycle History Entry</h2>
+      <p class="text-[14px] text-muted-foreground mb-6">
+        Permanently delete this cycle history record? This cannot be undone.
+      </p>
+      <form method="POST" action="?/deleteCycleHistory"
+        use:enhance={() => { return async ({ update }) => { await update(); }; }}>
+        <input type="hidden" name="id" value={deletingCycleId} />
+        <div class="flex gap-2 justify-end">
+          <button type="button" onclick={() => { deleteCycleDialogOpen = false; deletingCycleId = ''; }}
+            class="px-4 py-2 rounded-md text-[14px] border border-border text-muted-foreground hover:text-foreground transition-colors">Cancel</button>
+          <button type="submit"
+            class="px-4 py-2 rounded-md text-[14px] border transition-colors"
+            style="border-color: #8b2b2b; color: #ff9999;">
+            Delete
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+{/if}
+
 <!-- ======================== EDIT NODE MODAL ======================== -->
 {#if showEditModal}
   <div class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(0,0,0,0.78);"
@@ -1391,13 +1536,13 @@
             <label for="edit-tier" class="block text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground mb-2">
               Tier <span style="color: #ff9999;">*</span>
             </label>
-            <select id="edit-tier" name="tier" required
+            <select id="edit-tier" name="tier" required bind:value={editTier}
               class="w-full px-4 py-2 rounded-md text-[14px] text-foreground focus:outline-none transition-colors"
               style="background: #2c2518; border: 1px solid #3d3426;">
-              <option value="1" selected={data.node.tier === 1}>T1</option>
-              <option value="2" selected={data.node.tier === 2}>T2</option>
-              <option value="3" selected={data.node.tier === 3}>T3</option>
-              <option value="4" selected={data.node.tier === 4}>T4</option>
+              <option value={1}>T1</option>
+              <option value={2}>T2</option>
+              <option value={3}>T3</option>
+              <option value={4}>T4</option>
             </select>
           </div>
 
@@ -1416,13 +1561,14 @@
             </select>
           </div>
 
-          <!-- Base Upkeep -->
+          <!-- Base Upkeep (auto-set from tier standard, can override) -->
           <div>
             <label for="edit-upkeep" class="block text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground mb-2">
               Base Upkeep (SP/week)
+              <span class="font-normal normal-case text-[10px]" style="color: #8b7d65;"> — auto-set from tier</span>
             </label>
             <input id="edit-upkeep" name="base_upkeep" type="number" min="0"
-              value={data.node.base_upkeep || ''}
+              bind:value={editBaseUpkeep}
               class="w-full px-4 py-2 rounded-md text-[14px] text-foreground focus:outline-none transition-colors"
               style="background: #2c2518; border: 1px solid #3d3426;" />
           </div>

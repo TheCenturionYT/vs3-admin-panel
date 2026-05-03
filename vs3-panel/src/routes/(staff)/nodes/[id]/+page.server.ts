@@ -86,6 +86,7 @@ const logSubmissionSchema = z.object({
 });
 
 const removeSubmissionSchema = z.object({ id: z.string().min(1) });
+const deleteCycleHistorySchema = z.object({ id: z.string().min(1) });
 
 const rollInstabilitySchema = z.object({
   roll: z.coerce.number().int().min(1).max(100),
@@ -648,6 +649,32 @@ export const actions: Actions = {
     return { success: true, action: 'resolveEvent' };
   },
 
+  deleteCycleHistory: async ({ request, locals, params }) => {
+    if (locals.pb.authStore.record?.role !== 'head_admin') {
+      return fail(403, { action: 'deleteCycleHistory', errors: { _global: ['Head Admin access required.'] } });
+    }
+    const formData = await request.formData();
+    const parsed = deleteCycleHistorySchema.safeParse({ id: formData.get('id') });
+    if (!parsed.success) {
+      return fail(400, { action: 'deleteCycleHistory', errors: { _global: ['Invalid request.'] } });
+    }
+    // Verify record belongs to this node
+    try {
+      const rec = await locals.pb.collection('submission_history').getOne(parsed.data.id, { fields: 'id,node' });
+      if ((rec as { node: string }).node !== params.id) {
+        return fail(400, { action: 'deleteCycleHistory', errors: { _global: ['Record does not belong to this node.'] } });
+      }
+    } catch {
+      return fail(400, { action: 'deleteCycleHistory', errors: { _global: ['Record not found.'] } });
+    }
+    try {
+      await locals.pb.collection('submission_history').delete(parsed.data.id);
+    } catch {
+      return fail(500, { action: 'deleteCycleHistory', errors: { _global: ['Failed to delete cycle history.'] } });
+    }
+    return { success: true, action: 'deleteCycleHistory' };
+  },
+
   confirmCycle: async ({ locals, params }) => {
     let step = 'fetch';
     try {
@@ -684,6 +711,17 @@ export const actions: Actions = {
 
       const actor = (locals.pb.authStore.record as { username?: string } | null)?.username ?? '';
 
+      // Build snapshot of items pushed this cycle for the history viewer
+      const snapshotItems = (submissions as { item_name: string; category: string; qty: number; sp_value: number; submission_type: string; staff_note: string }[])
+        .map(s => ({
+          item_name: s.item_name,
+          category: s.category,
+          qty: s.qty,
+          sp_value: s.sp_value,
+          submission_type: s.submission_type,
+          staff_note: s.staff_note ?? ''
+        }));
+
       step = 'create-history';
       await locals.pb.collection('submission_history').create({
         node: params.id,
@@ -691,8 +729,8 @@ export const actions: Actions = {
         paid_sp: paidSP,
         required_sp: effectiveUpkeep,
         outcome,
-        instab_delta: instabDelta
-        // snapshot omitted: field maxSize was 0 in schema — fixed via migration 1777900003
+        instab_delta: instabDelta,
+        snapshot: snapshotItems
       });
 
       step = 'update-instability';
@@ -708,7 +746,8 @@ export const actions: Actions = {
         .filter(s => s.submission_type === 'upgrade').length;
       if (upgradeCount > 0) {
         const curTier = (node as { tier?: number }).tier ?? 1;
-        await locals.pb.collection('nodes').update(params.id, { tier: Math.min(4, curTier + upgradeCount) });
+        // Cap at 1 tier per cycle regardless of how many upgrade subs were queued
+        await locals.pb.collection('nodes').update(params.id, { tier: Math.min(4, curTier + 1) });
       }
 
       step = 'delete-submissions';

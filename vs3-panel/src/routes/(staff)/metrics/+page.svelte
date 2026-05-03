@@ -1,11 +1,11 @@
 <script lang="ts">
   import * as Tabs from '$lib/components/ui/tabs';
-  import { Bar } from 'svelte5-chartjs';
-  import { Chart, BarElement, CategoryScale, LinearScale, Tooltip, Legend } from 'chart.js';
+  import { Bar, Pie } from 'svelte5-chartjs';
+  import { Chart, BarElement, CategoryScale, LinearScale, Tooltip, Legend, ArcElement } from 'chart.js';
   import { format, startOfWeek } from 'date-fns';
   import type { PageData } from './$types';
 
-  Chart.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend);
+  Chart.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend, ArcElement);
 
   let { data }: { data: PageData } = $props();
 
@@ -118,6 +118,43 @@
         avgRate: v.cycles ? Math.round(v.rateSum / v.cycles) : 0
       };
     }).sort((a, b) => b.paidSP - a.paidSP);
+  })());
+
+  const PIE_PALETTE = [
+    '#c4a45a','#3d6b3d','#3d6b8a','#8b4b6b',
+    '#6b8b3d','#8b6b3d','#5a8a8a','#8a5a3d',
+    '#6b3d8b','#3d8b6b','#8b3d5a','#3d5a8b'
+  ];
+
+  const pieData = $derived((() => {
+    if (totalsRows.length === 0) return null;
+
+    if (groupBy === 'faction') {
+      const rows = totalsRows as Array<{ key: string; label: string; color: string; paidSP: number }>;
+      const positive = rows.filter(r => r.paidSP > 0);
+      if (positive.length === 0) return null;
+      return {
+        labels: positive.map(r => r.label),
+        datasets: [{ data: positive.map(r => r.paidSP), backgroundColor: positive.map(r => r.color), borderColor: '#1a1510', borderWidth: 2 }]
+      };
+    }
+    if (groupBy === 'node') {
+      const rows = totalsRows as Array<{ key: string; label: string; ownerColor: string; paidSP: number }>;
+      const positive = rows.filter(r => r.paidSP > 0).slice(0, 12);
+      if (positive.length === 0) return null;
+      return {
+        labels: positive.map(r => r.label),
+        datasets: [{ data: positive.map(r => r.paidSP), backgroundColor: positive.map(r => r.ownerColor), borderColor: '#1a1510', borderWidth: 2 }]
+      };
+    }
+    // category / item — from snapshot SP values
+    const rows = totalsRows as Array<{ key: string; label: string; totalSP: number }>;
+    const positive = rows.filter(r => r.totalSP > 0).slice(0, 12);
+    if (positive.length === 0) return null;
+    return {
+      labels: positive.map(r => r.label),
+      datasets: [{ data: positive.map(r => r.totalSP), backgroundColor: positive.map((_, i) => PIE_PALETTE[i % PIE_PALETTE.length]), borderColor: '#1a1510', borderWidth: 2 }]
+    };
   })());
 
   function paymentRateColor(rate: number): string {
@@ -256,13 +293,57 @@
       {/if}
     </div>
 
-    <!-- Dynamic table -->
-    <div class="bg-card border border-border rounded-md">
-      {#if totalsRows.length === 0}
-        <div class="py-8 text-center text-[14px] text-muted-foreground">
-          No submission data for the selected filters.
+    <!-- Pie chart + table -->
+    {#if totalsRows.length === 0}
+      <div class="bg-card border border-border rounded-md py-8 text-center text-[14px] text-muted-foreground">
+        No submission data for the selected filters. Data appears after the first cycle is pushed.
+      </div>
+    {:else}
+      <div class="flex gap-4 mb-4">
+        <!-- Pie chart -->
+        <div class="bg-card border border-border rounded-md p-4 flex items-center justify-center" style="min-width: 260px; width: 260px; height: 260px;">
+          {#if pieData}
+            <Pie
+              data={pieData}
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: { display: false },
+                  tooltip: {
+                    callbacks: {
+                      label: (ctx) => ` ${ctx.label}: ${ctx.parsed} SP`
+                    }
+                  }
+                }
+              }}
+            />
+          {:else}
+            <p class="text-[13px] text-muted-foreground text-center">No positive SP data to chart.</p>
+          {/if}
         </div>
-      {:else if groupBy === 'category'}
+        <!-- Legend -->
+        {#if pieData}
+          <div class="bg-card border border-border rounded-md p-4 flex-1 overflow-auto" style="max-height: 260px;">
+            <div class="text-[11px] font-semibold uppercase text-muted-foreground mb-3" style="letter-spacing: 0.07em;">Breakdown</div>
+            <div class="space-y-1.5">
+              {#each pieData.labels as label, i}
+                <div class="flex items-center gap-2 text-[13px]">
+                  <span class="w-3 h-3 rounded-sm shrink-0" style="background: {pieData.datasets[0].backgroundColor[i]};"></span>
+                  <span class="text-foreground truncate flex-1">{label}</span>
+                  <span class="text-muted-foreground shrink-0">{pieData.datasets[0].data[i]} SP</span>
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
+      </div>
+    {/if}
+
+    <!-- Detail table (only when there's data) -->
+    {#if totalsRows.length > 0}
+    <div class="bg-card border border-border rounded-md">
+      {#if groupBy === 'category'}
         <table class="w-full text-[14px]">
           <thead>
             <tr class="border-b border-border">
@@ -369,6 +450,7 @@
         </table>
       {/if}
     </div>
+    {/if}
   </Tabs.Content>
 
   <!-- Weekly Chart tab -->
