@@ -455,13 +455,13 @@ export const actions: Actions = {
       if (!REPAIR_SP[tier]) return fail(400, { action: 'logSubmission', errors: { _global: [`No repair cost defined for tier ${tier}.`] } });
       item_name = `Repair — T${tier}`;
       category = 'special';
-      sp_value = REPAIR_SP[tier];
+      sp_value = -REPAIR_SP[tier];
     } else if (submission_type === 'upgrade') {
       if (tier >= 4) return fail(400, { action: 'logSubmission', errors: { _global: ['Node is already at maximum tier (T4).'] } });
       if (!UPGRADE_SP[tier]) return fail(400, { action: 'logSubmission', errors: { _global: [`No upgrade cost defined for tier ${tier}.`] } });
-      item_name = `Upgrade — T${tier} → T${tier + 1}`;
+      item_name = `Upgrade — T${tier} → T${Number(tier) + 1}`;
       category = 'special';
-      sp_value = UPGRADE_SP[tier];
+      sp_value = -UPGRADE_SP[tier];
     }
 
     const submittedBy = (locals.pb.authStore.record as { id?: string } | null)?.id;
