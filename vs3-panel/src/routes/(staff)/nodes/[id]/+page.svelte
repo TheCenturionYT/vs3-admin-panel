@@ -115,7 +115,18 @@
   const cycleProgressPct = $derived(
     effectiveUpkeep > 0 ? Math.min(100, Math.round(upkeepPaidSP / effectiveUpkeep * 100)) : 0
   );
-  const cycleFullyPaid = $derived(effectiveUpkeep > 0 && upkeepPaidSP >= effectiveUpkeep);
+  // === Post-push persistence ===
+  // When submissions are cleared after a push, fall back to the most recent cycle history record
+  const noCurrentSubs = $derived((data.currentSubmissions ?? []).length === 0);
+  const lastCycleRecord = $derived((data.cycleHistory ?? [])[0] ?? null);
+
+  // cycleFullyPaid: if in-flight subs exist, check them; if cleared, check last cycle outcome
+  const cycleFullyPaid = $derived(
+    noCurrentSubs
+      ? lastCycleRecord?.outcome === 'paid'
+      : effectiveUpkeep > 0 && upkeepPaidSP >= effectiveUpkeep
+  );
+
   // Reserve = upkeep overpayment this cycle, capped at 1× effectiveUpkeep (max banked reserve)
   // Only upkeep-type submissions count toward reserve; repair/upgrade are separate costs
   const STANDARD_UPKEEP: Record<number, number> = { 1: 40, 2: 80, 3: 160, 4: 240 };
@@ -123,6 +134,18 @@
   const reserveSP  = $derived(Math.min(effectiveUpkeep, reserveRaw));
   // Amount above the cap that won't carry over
   const overCapSP  = $derived(Math.max(0, reserveRaw - effectiveUpkeep));
+
+  // When no current subs, carry the persisted reserve from the last cycle's overpayment
+  const persistedReserve = $derived(
+    noCurrentSubs && lastCycleRecord
+      ? Math.min(
+          effectiveUpkeep,
+          Math.max(0, (lastCycleRecord.paid_sp ?? 0) - (lastCycleRecord.required_sp ?? 0))
+        )
+      : 0
+  );
+  const displayReserve = $derived(noCurrentSubs ? persistedReserve : reserveSP);
+  const displayOverCap = $derived(noCurrentSubs ? 0 : overCapSP);
   let confirmingCycle = $state(false);
   let expandedCycles = $state<Set<string>>(new Set());
 
@@ -134,6 +157,15 @@
   // Cycle history delete state
   let deletingCycleId = $state('');
   let deleteCycleDialogOpen = $state(false);
+
+  // Node log delete state
+  let deletingNodeLogId = $state('');
+  let deleteNodeLogDialogOpen = $state(false);
+
+  // Cycle outcome override state
+  let overrideOutcomeValue = $state<'paid' | 'partial' | 'underfunded' | 'unpaid'>('paid');
+  let showOutcomeOverride = $state(false);
+  let savingOutcome = $state(false);
 
   function toggleCycle(id: string) {
     const next = new Set(expandedCycles);
@@ -186,6 +218,13 @@
       if (form.action === 'deleteCycleHistory') {
         deleteCycleDialogOpen = false;
         deletingCycleId = '';
+      }
+      if (form.action === 'deleteNodeLogEntry') {
+        deleteNodeLogDialogOpen = false;
+        deletingNodeLogId = '';
+      }
+      if (form.action === 'updateCycleOutcome') {
+        showOutcomeOverride = false;
       }
     }
   });
@@ -326,24 +365,57 @@
               ✗ Unpaid
             </span>
           {/if}
+          <!-- Staff can override the most recent cycle outcome -->
+          {#if noCurrentSubs && lastCycleRecord}
+            {#if !showOutcomeOverride}
+              <button type="button"
+                onclick={() => { overrideOutcomeValue = lastCycleRecord.outcome as 'paid'|'partial'|'underfunded'|'unpaid'; showOutcomeOverride = true; }}
+                class="text-[11px] transition-colors"
+                style="color: #8b7d65; text-decoration: underline; text-decoration-style: dashed; cursor: pointer;"
+                title="Override paid status">
+                Change
+              </button>
+            {:else}
+              <form method="POST" action="?/updateCycleOutcome"
+                use:enhance={() => { savingOutcome = true; return async ({ update }) => { await update(); savingOutcome = false; }; }}
+                class="flex items-center gap-1">
+                <input type="hidden" name="id" value={lastCycleRecord.id} />
+                <select name="outcome" bind:value={overrideOutcomeValue}
+                  class="px-1 py-0.5 rounded text-[11px] text-foreground focus:outline-none"
+                  style="background: #2c2518; border: 1px solid #3d3426;">
+                  <option value="paid">Paid</option>
+                  <option value="partial">Partial</option>
+                  <option value="underfunded">Underfunded</option>
+                  <option value="unpaid">Unpaid</option>
+                </select>
+                <button type="submit" disabled={savingOutcome}
+                  class="px-2 py-0.5 rounded text-[11px] border transition-colors disabled:opacity-50"
+                  style="border-color: #c4a45a; color: #c4a45a;">
+                  {#if savingOutcome}…{:else}Save{/if}
+                </button>
+                <button type="button" onclick={() => showOutcomeOverride = false}
+                  class="text-[11px] text-muted-foreground hover:text-foreground transition-colors">✕</button>
+              </form>
+            {/if}
+          {/if}
           {#if data.nextDeadline}
             <span class="text-[12px]" style="color: #8b7d65;">
               Deadline: {formatDeadline(data.nextDeadline)}
             </span>
           {/if}
-          {#if reserveSP > 0}
+          {#if displayReserve > 0}
             <span class="flex items-center gap-1.5 text-[12px]" style="color: #88bbdd;">
-              <span>Reserve:</span>
+              <span>Reserve{noCurrentSubs ? ' (last cycle)' : ''}:</span>
               <span class="inline-flex rounded overflow-hidden" style="width: 60px; height: 6px; background: #2c2518;">
-                <span class="h-full" style="width: {Math.min(100, Math.round(reserveSP/effectiveUpkeep*100))}%; background: #3d6b8a;"></span>
+                <span class="h-full" style="width: {Math.min(100, Math.round(displayReserve/effectiveUpkeep*100))}%; background: #3d6b8a;"></span>
               </span>
-              <span class="font-semibold">{reserveSP} / {effectiveUpkeep} SP</span>
+              <span class="font-semibold">{displayReserve} / {effectiveUpkeep} SP</span>
             </span>
           {/if}
-          {#if overCapSP > 0}
+          {#if displayOverCap > 0}
             <span class="px-2 py-0.5 rounded text-[11px] font-semibold"
                   style="background: rgba(200,100,40,0.15); border: 1px solid rgba(200,100,40,0.3); color: #e07840;">
-              ⚠ {overCapSP} SP over cap
+              ⚠ {displayOverCap} SP over cap
             </span>
           {/if}
         {/if}
@@ -536,6 +608,18 @@
                     ⚠ {overCapSP} SP over the reserve cap — excess won't carry over after push
                   </p>
                 {/if}
+              </div>
+            {:else if noCurrentSubs && persistedReserve > 0}
+              <div class="mt-2">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-[11px] text-muted-foreground">Reserve (carried from last cycle)</span>
+                  <span class="text-[11px] font-semibold" style="color: #88bbdd;">{persistedReserve} / {effectiveUpkeep} SP cap</span>
+                </div>
+                <div class="relative w-full rounded h-1.5 overflow-hidden" style="background: #2c2518;">
+                  <div class="h-full rounded transition-all"
+                       style="width: {Math.min(100, Math.round(persistedReserve / effectiveUpkeep * 100))}%; background: #3d6b8a;">
+                  </div>
+                </div>
               </div>
             {:else if upkeepPaidSP < effectiveUpkeep && (data.currentSubmissions ?? []).length > 0}
               <p class="text-[11px] mt-1" style="color: #e07840;">
@@ -1193,6 +1277,7 @@
               <th class="text-left px-3 py-1.5 text-[11px] font-semibold uppercase text-muted-foreground" style="letter-spacing: 0.06em;">Event</th>
               <th class="text-left px-3 py-1.5 text-[11px] font-semibold uppercase text-muted-foreground" style="letter-spacing: 0.06em;">Description</th>
               <th class="text-left px-3 py-1.5 text-[11px] font-semibold uppercase text-muted-foreground" style="letter-spacing: 0.06em;">Actor</th>
+              {#if isHeadAdmin}<th class="px-3 py-1.5 text-[11px]" style="width: 60px;"></th>{/if}
             </tr>
           </thead>
           <tbody>
@@ -1207,6 +1292,18 @@
                 </td>
                 <td class="px-3 py-2 text-[14px] text-foreground">{entry.description}</td>
                 <td class="px-3 py-2 text-[14px] text-muted-foreground">{entry.actor || '—'}</td>
+                {#if isHeadAdmin}
+                  <td class="px-3 py-2 text-right">
+                    <button type="button"
+                      onclick={() => { deletingNodeLogId = entry.id; deleteNodeLogDialogOpen = true; }}
+                      class="px-2 py-0.5 rounded text-[11px] border transition-colors"
+                      style="border-color: #8b2b2b; color: #ff9999;"
+                      onmouseover={(e) => (e.currentTarget as HTMLButtonElement).style.background = 'rgba(139,43,43,0.12)'}
+                      onmouseout={(e) => (e.currentTarget as HTMLButtonElement).style.background = 'transparent'}>
+                      Del
+                    </button>
+                  </td>
+                {/if}
               </tr>
             {/each}
           </tbody>
@@ -1475,6 +1572,32 @@
         <input type="hidden" name="id" value={deletingCycleId} />
         <div class="flex gap-2 justify-end">
           <button type="button" onclick={() => { deleteCycleDialogOpen = false; deletingCycleId = ''; }}
+            class="px-4 py-2 rounded-md text-[14px] border border-border text-muted-foreground hover:text-foreground transition-colors">Cancel</button>
+          <button type="submit"
+            class="px-4 py-2 rounded-md text-[14px] border transition-colors"
+            style="border-color: #8b2b2b; color: #ff9999;">
+            Delete
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+{/if}
+
+<!-- ======================== DELETE NODE LOG ENTRY DIALOG ======================== -->
+{#if deleteNodeLogDialogOpen}
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(0,0,0,0.78);"
+    role="dialog" aria-modal="true">
+    <div class="w-full max-w-[420px] rounded-lg p-6" style="background: #231d14; border: 1px solid rgba(196,164,90,0.28);">
+      <h2 class="text-[15px] font-semibold text-foreground mb-3">Delete Node Log Entry</h2>
+      <p class="text-[14px] text-muted-foreground mb-6">
+        Permanently delete this log entry? This cannot be undone.
+      </p>
+      <form method="POST" action="?/deleteNodeLogEntry"
+        use:enhance={() => { return async ({ update }) => { await update(); }; }}>
+        <input type="hidden" name="id" value={deletingNodeLogId} />
+        <div class="flex gap-2 justify-end">
+          <button type="button" onclick={() => { deleteNodeLogDialogOpen = false; deletingNodeLogId = ''; }}
             class="px-4 py-2 rounded-md text-[14px] border border-border text-muted-foreground hover:text-foreground transition-colors">Cancel</button>
           <button type="submit"
             class="px-4 py-2 rounded-md text-[14px] border transition-colors"

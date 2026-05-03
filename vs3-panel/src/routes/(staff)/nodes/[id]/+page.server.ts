@@ -87,6 +87,11 @@ const logSubmissionSchema = z.object({
 
 const removeSubmissionSchema = z.object({ id: z.string().min(1) });
 const deleteCycleHistorySchema = z.object({ id: z.string().min(1) });
+const deleteNodeLogEntrySchema = z.object({ id: z.string().min(1) });
+const updateCycleOutcomeSchema = z.object({
+  id: z.string().min(1),
+  outcome: z.enum(['paid', 'partial', 'underfunded', 'unpaid'])
+});
 
 const rollInstabilitySchema = z.object({
   roll: z.coerce.number().int().min(1).max(100),
@@ -675,6 +680,58 @@ export const actions: Actions = {
     return { success: true, action: 'deleteCycleHistory' };
   },
 
+  deleteNodeLogEntry: async ({ request, locals, params }) => {
+    if (locals.pb.authStore.record?.role !== 'head_admin') {
+      return fail(403, { action: 'deleteNodeLogEntry', errors: { _global: ['Head Admin access required.'] } });
+    }
+    const formData = await request.formData();
+    const parsed = deleteNodeLogEntrySchema.safeParse({ id: formData.get('id') });
+    if (!parsed.success) {
+      return fail(400, { action: 'deleteNodeLogEntry', errors: { _global: ['Invalid request.'] } });
+    }
+    // Verify the log entry belongs to this node
+    try {
+      const entry = await locals.pb.collection('server_log').getOne(parsed.data.id, { fields: 'id,related_node' });
+      if ((entry as { related_node: string }).related_node !== params.id) {
+        return fail(400, { action: 'deleteNodeLogEntry', errors: { _global: ['Entry does not belong to this node.'] } });
+      }
+    } catch {
+      return fail(400, { action: 'deleteNodeLogEntry', errors: { _global: ['Entry not found.'] } });
+    }
+    try {
+      await locals.pb.collection('server_log').delete(parsed.data.id);
+    } catch {
+      return fail(500, { action: 'deleteNodeLogEntry', errors: { _global: ['Failed to delete entry.'] } });
+    }
+    return { success: true, action: 'deleteNodeLogEntry' };
+  },
+
+  updateCycleOutcome: async ({ request, locals, params }) => {
+    const formData = await request.formData();
+    const parsed = updateCycleOutcomeSchema.safeParse({
+      id: formData.get('id'),
+      outcome: formData.get('outcome')
+    });
+    if (!parsed.success) {
+      return fail(400, { action: 'updateCycleOutcome', errors: parsed.error.flatten().fieldErrors });
+    }
+    // Verify record belongs to this node
+    try {
+      const rec = await locals.pb.collection('submission_history').getOne(parsed.data.id, { fields: 'id,node' });
+      if ((rec as { node: string }).node !== params.id) {
+        return fail(400, { action: 'updateCycleOutcome', errors: { _global: ['Record does not belong to this node.'] } });
+      }
+    } catch {
+      return fail(400, { action: 'updateCycleOutcome', errors: { _global: ['Record not found.'] } });
+    }
+    try {
+      await locals.pb.collection('submission_history').update(parsed.data.id, { outcome: parsed.data.outcome });
+    } catch {
+      return fail(500, { action: 'updateCycleOutcome', errors: { _global: ['Failed to update outcome.'] } });
+    }
+    return { success: true, action: 'updateCycleOutcome' };
+  },
+
   confirmCycle: async ({ locals, params }) => {
     let step = 'fetch';
     try {
@@ -740,14 +797,19 @@ export const actions: Actions = {
         await locals.pb.collection('nodes').update(params.id, { instability: newInstab, roll_due: newInstab > 0 });
       }
 
-      // Apply upgrade tier bumps from this cycle's submissions
+      // Apply upgrade tier bump — validate that the upgrade submission matches the CURRENT tier
+      // to prevent stale subs from jumping tiers unexpectedly
       step = 'update-tier';
-      const upgradeCount = (submissions as { submission_type: string }[])
-        .filter(s => s.submission_type === 'upgrade').length;
-      if (upgradeCount > 0) {
-        const curTier = (node as { tier?: number }).tier ?? 1;
-        // Cap at 1 tier per cycle regardless of how many upgrade subs were queued
-        await locals.pb.collection('nodes').update(params.id, { tier: Math.min(4, curTier + 1) });
+      const STANDARD_BASE_UPKEEP: Record<number, number> = { 1: 40, 2: 80, 3: 160, 4: 240 };
+      const curTier = (node as { tier?: number }).tier ?? 1;
+      const validUpgrade = (submissions as { submission_type: string; item_name: string }[])
+        .find(s => s.submission_type === 'upgrade' && s.item_name === `Upgrade — T${curTier} → T${Number(curTier) + 1}`);
+      if (validUpgrade) {
+        const newTier = Math.min(4, curTier + 1);
+        await locals.pb.collection('nodes').update(params.id, {
+          tier: newTier,
+          base_upkeep: STANDARD_BASE_UPKEEP[newTier] ?? (node as { base_upkeep?: number }).base_upkeep
+        });
       }
 
       step = 'delete-submissions';
@@ -756,7 +818,7 @@ export const actions: Actions = {
       }
 
       step = 'create-log';
-      const tierNote = upgradeCount > 0 ? ` — tier upgraded` : '';
+      const tierNote = validUpgrade ? ` — tier upgraded to T${Math.min(4, curTier + 1)}` : '';
       await locals.pb.collection('server_log').create({
         event_type: 'cycle_confirmed',
         description: `Upkeep cycle confirmed — ${paidSP}/${effectiveUpkeep} SP paid (${outcome})${instabDelta > 0 ? ` — instability +${instabDelta}` : ''}${tierNote}`,
