@@ -60,9 +60,11 @@ const deleteNodeSchema = z.object({
 
 // === Phase 3 Schemas ===
 const logSubmissionSchema = z.object({
-  submission_type: z.enum(['upkeep', 'instability_reduction', 'repair', 'upgrade']),
+  submission_type: z.enum(['upkeep', 'instability_reduction', 'repair', 'upgrade', 'custom']),
   item: z.string().optional(),
   qty: z.coerce.number().int().min(1).optional(),
+  custom_name: z.string().max(100).optional(),
+  custom_sp: z.coerce.number().optional(),
   staff_note: z.string().max(200).optional()
 });
 
@@ -405,7 +407,7 @@ export const actions: Actions = {
     if (!parsed.success) {
       return fail(400, { action: 'logSubmission', errors: parsed.error.flatten().fieldErrors });
     }
-    const { submission_type, item, qty, staff_note } = parsed.data;
+    const { submission_type, item, qty, custom_name, custom_sp, staff_note } = parsed.data;
 
     // Resolve sp_value, item_name, category by submission_type
     const node = await locals.pb.collection('nodes').getOne(params.id);
@@ -462,6 +464,12 @@ export const actions: Actions = {
       item_name = `Upgrade — T${tier} → T${Number(tier) + 1}`;
       category = 'special';
       sp_value = -UPGRADE_SP[tier];
+    } else if (submission_type === 'custom') {
+      if (!custom_name?.trim()) return fail(400, { action: 'logSubmission', errors: { _global: ['Description is required for custom submissions.'] } });
+      if (!custom_sp || custom_sp === 0) return fail(400, { action: 'logSubmission', errors: { _global: ['SP value must be non-zero for custom submissions.'] } });
+      item_name = custom_name.trim();
+      category = 'special';
+      sp_value = custom_sp;
     }
 
     const submittedBy = (locals.pb.authStore.record as { id?: string } | null)?.id;

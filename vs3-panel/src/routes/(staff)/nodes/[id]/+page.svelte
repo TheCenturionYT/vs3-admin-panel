@@ -37,7 +37,9 @@
 
   // === Phase 3 submission modal state ===
   let showSubmissionModal = $state(false);
-  let submissionType = $state<'upkeep' | 'instability_reduction' | 'repair' | 'upgrade'>('upkeep');
+  let submissionType = $state<'upkeep' | 'instability_reduction' | 'repair' | 'upgrade' | 'custom'>('upkeep');
+  let customName = $state('');
+  let customSP = $state(0);
   let selectedItemId = $state('');
   let qty = $state(1);
   let staffNote = $state('');
@@ -96,7 +98,8 @@
   })());
 
   const upgradeBlocked = $derived(submissionType === 'upgrade' && (data.node?.tier ?? 0) >= 4);
-  const submitDisabled = $derived(submitting || (submissionType === 'upkeep' && !capPreview.ok) || upgradeBlocked);
+  const customBlocked = $derived(submissionType === 'custom' && (!customName.trim() || customSP === 0));
+  const submitDisabled = $derived(submitting || (submissionType === 'upkeep' && !capPreview.ok) || upgradeBlocked || customBlocked);
 
   // === Current cycle totals ===
   const cycleTotalSP = $derived(
@@ -120,6 +123,7 @@
     submissionType === 'repair' ? 'Log Repair'
     : submissionType === 'upgrade' ? 'Log Upgrade'
     : submissionType === 'instability_reduction' ? 'Reduce Instability'
+    : submissionType === 'custom' ? 'Log Custom'
     : 'Log Submission'
   );
 
@@ -1074,6 +1078,7 @@
             <option value="repair">Repair</option>
             <option value="upgrade">Upgrade</option>
             <option value="instability_reduction">Reduce Instability</option>
+            <option value="custom">Custom</option>
           </select>
         </div>
 
@@ -1138,6 +1143,33 @@
               This node's instability is already 0. This submission will still be logged.
             </div>
           {/if}
+
+        {:else if submissionType === 'custom'}
+          <div class="mb-4">
+            <label for="custom-name" class="block text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground mb-2">
+              Description <span style="color: #ff9999;">*</span>
+            </label>
+            <input id="custom-name" name="custom_name" type="text" maxlength="100" bind:value={customName}
+              class="w-full px-4 py-2 rounded-md text-[14px] text-foreground focus:outline-none transition-colors"
+              style="background: #2c2518; border: 1px solid #3d3426;"
+              placeholder="e.g. Event reward, SP debt, manual adjustment..." />
+          </div>
+          <div class="mb-4">
+            <label for="custom-sp" class="block text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground mb-2">
+              SP Value <span style="color: #ff9999;">*</span>
+              <span class="font-normal normal-case">(negative = cost)</span>
+            </label>
+            <input id="custom-sp" name="custom_sp" type="number" bind:value={customSP}
+              class="w-full px-4 py-2 rounded-md text-[14px] text-foreground focus:outline-none transition-colors"
+              style="background: #2c2518; border: 1px solid #3d3426;"
+              placeholder="e.g. 100 or -50" />
+          </div>
+          {#if customSP !== 0}
+            <div class="mb-4 px-3 py-2 rounded-md text-[14px]" style="background: rgba(196,164,90,0.06); border: 1px solid rgba(196,164,90,0.15);">
+              <span class="text-muted-foreground">Custom entry: </span>
+              <span class="font-semibold" style="color: {customSP < 0 ? '#e07840' : '#c4a45a'};">{customSP} SP</span>
+            </div>
+          {/if}
         {/if}
 
         <!-- Staff Note -->
@@ -1157,7 +1189,7 @@
 
           {#if submissionType !== 'upkeep'}
             <p class="text-[11px] text-muted-foreground" style="opacity: 0.7;">
-              Category caps do not apply to {submissionType === 'repair' ? 'Repair' : submissionType === 'upgrade' ? 'Upgrade' : 'Instability Reduction'} submissions.
+              Category caps do not apply to {submissionType === 'repair' ? 'Repair' : submissionType === 'upgrade' ? 'Upgrade' : submissionType === 'custom' ? 'Custom' : 'Instability Reduction'} submissions.
             </p>
           {:else}
             <!-- Raw Renewable row -->
