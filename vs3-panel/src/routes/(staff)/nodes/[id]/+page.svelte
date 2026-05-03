@@ -102,11 +102,17 @@
   const cycleTotalSP = $derived(
     (data.currentSubmissions ?? []).reduce((sum: number, s: { sp_value: number }) => sum + s.sp_value, 0)
   );
+  // Only upkeep-type submissions count toward the progress bar — repair/upgrade are additional costs
+  const upkeepPaidSP = $derived(
+    (data.currentSubmissions ?? [])
+      .filter((s: { submission_type: string }) => s.submission_type === 'upkeep')
+      .reduce((sum: number, s: { sp_value: number }) => sum + s.sp_value, 0)
+  );
 
   const cycleProgressPct = $derived(
-    effectiveUpkeep > 0 ? Math.min(100, Math.round(cycleTotalSP / effectiveUpkeep * 100)) : 0
+    effectiveUpkeep > 0 ? Math.min(100, Math.round(upkeepPaidSP / effectiveUpkeep * 100)) : 0
   );
-  const cycleFullyPaid = $derived(effectiveUpkeep > 0 && cycleTotalSP >= effectiveUpkeep);
+  const cycleFullyPaid = $derived(effectiveUpkeep > 0 && upkeepPaidSP >= effectiveUpkeep);
   let confirmingCycle = $state(false);
 
   // === Submission modal label ===
@@ -430,7 +436,7 @@
             <div class="flex items-center justify-between mb-1">
               <span class="text-[11px] text-muted-foreground">Upkeep progress</span>
               <span class="text-[11px] font-semibold" style="color: {cycleFullyPaid ? '#90cc90' : cycleProgressPct >= 50 ? '#d4c060' : '#e07840'};">
-                {cycleTotalSP} / {effectiveUpkeep} SP ({cycleProgressPct}%)
+                {upkeepPaidSP} / {effectiveUpkeep} SP ({cycleProgressPct}%)
               </span>
             </div>
             <div class="relative w-full rounded h-2 overflow-hidden" style="background: #2c2518;">
@@ -1117,7 +1123,7 @@
             </div>
           {:else}
             <div class="mb-4 px-3 py-2 rounded-md text-[14px]" style="background: rgba(196,164,90,0.06); border: 1px solid rgba(196,164,90,0.15);">
-              <span class="text-muted-foreground">Upgrade — T{data.node.tier} → T{data.node.tier + 1}: </span>
+              <span class="text-muted-foreground">Upgrade — T{data.node.tier} → T{Number(data.node.tier) + 1}: </span>
               <span class="font-semibold" style="color: #c4a45a;">{data.upgradeCost} SP</span>
             </div>
           {/if}
