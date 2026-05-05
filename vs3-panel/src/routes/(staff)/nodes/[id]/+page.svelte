@@ -45,6 +45,30 @@
   let staffNote = $state('');
   let submitting = $state(false);
 
+  // === Catalogue search/sort state ===
+  let catalogueSearch = $state('');
+  let catalogueSort = $state<'category' | 'name' | 'sp_asc' | 'sp_desc'>('category');
+  const filteredCatalogue = $derived((() => {
+    const search = catalogueSearch.trim().toLowerCase();
+    let items = (data.spCatalogue ?? []).filter((c: { name: string; category: string }) =>
+      !search || c.name.toLowerCase().includes(search) || c.category.toLowerCase().includes(search)
+    );
+    if (catalogueSort === 'name') {
+      items = [...items].sort((a, b) => a.name.localeCompare(b.name));
+    } else if (catalogueSort === 'sp_asc') {
+      items = [...items].sort((a: { sp_value: number }, b: { sp_value: number }) => a.sp_value - b.sp_value);
+    } else if (catalogueSort === 'sp_desc') {
+      items = [...items].sort((a: { sp_value: number }, b: { sp_value: number }) => b.sp_value - a.sp_value);
+    } else {
+      // default: category then name
+      items = [...items].sort((a, b) => {
+        const catDiff = a.category.localeCompare(b.category);
+        return catDiff !== 0 ? catDiff : a.name.localeCompare(b.name);
+      });
+    }
+    return items;
+  })());
+
   // === Remove submission dialog state ===
   let removeDialogOpen = $state(false);
   let pendingRemoveId = $state('');
@@ -207,6 +231,7 @@
         selectedItemId = '';
         qty = 1;
         staffNote = '';
+        catalogueSearch = '';
       }
       if (form.action === 'removeSubmission') {
         removeDialogOpen = false;
@@ -1347,17 +1372,39 @@
         <!-- Upkeep fields -->
         {#if submissionType === 'upkeep'}
           <div class="mb-4">
-            <label for="sub-item" class="block text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground mb-2">
+            <label class="block text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground mb-2">
               Item <span style="color: #ff9999;">*</span>
             </label>
+            <!-- Search + sort row -->
+            <div class="flex gap-2 mb-2">
+              <input
+                type="text"
+                placeholder="Search items or category…"
+                bind:value={catalogueSearch}
+                class="flex-1 px-3 py-1.5 rounded-md text-[13px] text-foreground focus:outline-none"
+                style="background: #2c2518; border: 1px solid #3d3426;"
+              />
+              <select bind:value={catalogueSort}
+                class="px-2 py-1.5 rounded-md text-[12px] text-muted-foreground focus:outline-none"
+                style="background: #2c2518; border: 1px solid #3d3426; min-width: 110px;">
+                <option value="category">By Category</option>
+                <option value="name">By Name</option>
+                <option value="sp_asc">SP ↑</option>
+                <option value="sp_desc">SP ↓</option>
+              </select>
+            </div>
             <select id="sub-item" name="item" bind:value={selectedItemId}
               class="w-full px-4 py-2 rounded-md text-[14px] text-foreground focus:outline-none transition-colors"
-              style="background: #2c2518; border: 1px solid #3d3426;">
-              <option value="">Select item...</option>
-              {#each (data.spCatalogue ?? []) as cat}
+              style="background: #2c2518; border: 1px solid #3d3426; max-height: 180px;"
+              size={Math.min(8, filteredCatalogue.length + 1)}>
+              <option value="">— Select item —</option>
+              {#each filteredCatalogue as cat (cat.id)}
                 <option value={cat.id}>{cat.name} ({cat.category} — {cat.sp_value} SP ea.)</option>
               {/each}
             </select>
+            {#if catalogueSearch && filteredCatalogue.length === 0}
+              <p class="text-[11px] mt-1" style="color: #8b7d65;">No items match "{catalogueSearch}"</p>
+            {/if}
             {#if form?.action === 'logSubmission' && form?.errors?.item}
               <p class="text-[11px] mt-1" style="color: #ff9999;">{form.errors.item[0]}</p>
             {/if}

@@ -48,29 +48,60 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 
   const nodeCount = rawNodes.length;
 
-  // Fetch current-cycle submissions for all faction nodes in one query
-  // Used to compute paidSP per node (sum of sp_value from submissions collection)
-  let allSubmissions: Array<{ node: string; sp_value: number }> = [];
+  // Build filter helpers for all faction nodes
+  const nodeFilterParts = rawNodes.map((n, i) => `node = {:nid${i}}`).join(' || ');
+  const nodeFilterValues = Object.fromEntries(rawNodes.map((n, i) => [`nid${i}`, n.id]));
+
+  // Fetch current-cycle submissions (upkeep type only) and last cycle history in parallel.
+  // submission_history.listRule now includes member access (migration 1777900005).
+  let allSubmissions: Array<{ node: string; sp_value: number; submission_type: string }> = [];
+  let lastCycleByNode: Record<string, { outcome: string; paid_sp: number; required_sp: number }> = {};
+
   if (nodeCount > 0) {
-    try {
-      const nodeFilter = rawNodes.map((n, i) => `node = {:nid${i}}`).join(' || ');
-      const nodeFilterValues = Object.fromEntries(rawNodes.map((n, i) => [`nid${i}`, n.id]));
-      allSubmissions = await locals.pb.collection('submissions').getFullList({
-        filter: nodeFilter,
+    const [subResult, histResult] = await Promise.allSettled([
+      locals.pb.collection('submissions').getFullList({
+        filter: nodeFilterParts,
         filterValues: nodeFilterValues,
-        fields: 'node,sp_value'
-      });
-    } catch {
-      // submissions fetch failure is non-fatal — paidSP will show as 0
-      allSubmissions = [];
+        fields: 'node,sp_value,submission_type'
+      }),
+      locals.pb.collection('submission_history').getFullList({
+        filter: nodeFilterParts,
+        filterValues: nodeFilterValues,
+        sort: '-deadline_ts',
+        fields: 'node,outcome,paid_sp,required_sp'
+      })
+    ]);
+
+    if (subResult.status === 'fulfilled') {
+      allSubmissions = subResult.value as typeof allSubmissions;
+    }
+
+    if (histResult.status === 'fulfilled') {
+      // Keep only the most recent cycle per node (list is sorted -deadline_ts)
+      for (const h of histResult.value) {
+        const nodeId = h.node as string;
+        if (!lastCycleByNode[nodeId]) {
+          lastCycleByNode[nodeId] = {
+            outcome: h.outcome as string,
+            paid_sp: h.paid_sp as number,
+            required_sp: h.required_sp as number
+          };
+        }
+      }
     }
   }
 
-  // Build a map of nodeId → total paid SP this cycle
+  // Build a map of nodeId → upkeep-only paid SP this cycle.
+  // Only 'upkeep' type submissions count toward the upkeep requirement;
+  // repair/upgrade are negative costs that should not reduce the paid SP total.
   const paidSpByNode = new Map<string, number>();
+  const hasSubsByNode = new Set<string>();
   for (const sub of allSubmissions) {
-    const prev = paidSpByNode.get(sub.node) ?? 0;
-    paidSpByNode.set(sub.node, prev + (sub.sp_value as number));
+    hasSubsByNode.add(sub.node);
+    if ((sub.submission_type as string) === 'upkeep') {
+      const prev = paidSpByNode.get(sub.node) ?? 0;
+      paidSpByNode.set(sub.node, prev + (sub.sp_value as number));
+    }
   }
 
   // Military node tier labels (CLAUDE.md: T1=Watchtower, T2=Outpost, T3=Fort, T4=Bastion)
@@ -80,7 +111,6 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 
   // Compute effective upkeep and cycle payment status for each node
   const nodes = rawNodes.map((node) => {
-    // tier is stored as string select ("1","2","3","4") — parse to number
     const tier = parseInt(node.tier as string, 10) || 1;
     const isMilitary = node.type === 'Military Node';
 
@@ -92,21 +122,43 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
       false // never neutral — filtered above (owner = factionId excludes unowned nodes)
     );
 
-    const paidSP: number = paidSpByNode.get(node.id as string) ?? 0;
-    const requiredSP: number = effectiveUpkeep;
-    const paymentPct = requiredSP > 0 ? paidSP / requiredSP : 0;
+    const nodeId = node.id as string;
+    const hasCurrentSubs = hasSubsByNode.has(nodeId);
+    const paidSP: number = paidSpByNode.get(nodeId) ?? 0;
+    const lastCycle = lastCycleByNode[nodeId] ?? null;
 
+    // Paid status: if current-cycle submissions exist, compute from them.
+    // If submissions were cleared (cycle was just pushed), fall back to last cycle outcome.
+    const requiredSP: number = effectiveUpkeep;
     let upkeepStatus: 'Paid' | 'Partial' | 'Underfunded' | 'Unpaid' | 'N/A';
-    if (requiredSP === 0) upkeepStatus = 'N/A';
-    else if (paymentPct >= 1) upkeepStatus = 'Paid';
-    else if (paymentPct >= 0.5) upkeepStatus = 'Partial';
-    else if (paymentPct > 0) upkeepStatus = 'Underfunded';
-    else upkeepStatus = 'Unpaid';
+
+    if (requiredSP === 0) {
+      upkeepStatus = 'N/A';
+    } else if (!hasCurrentSubs && lastCycle) {
+      // No in-flight submissions — reflect the most recent completed cycle
+      const outcome = lastCycle.outcome;
+      if (outcome === 'paid') upkeepStatus = 'Paid';
+      else if (outcome === 'partial') upkeepStatus = 'Partial';
+      else if (outcome === 'underfunded') upkeepStatus = 'Underfunded';
+      else upkeepStatus = 'Unpaid';
+    } else {
+      // In-flight submissions exist — compute live
+      const paymentPct = paidSP / requiredSP;
+      if (paymentPct >= 1) upkeepStatus = 'Paid';
+      else if (paymentPct >= 0.5) upkeepStatus = 'Partial';
+      else if (paymentPct > 0) upkeepStatus = 'Underfunded';
+      else upkeepStatus = 'Unpaid';
+    }
+
+    // Progress bar values — use last cycle if no current subs
+    const displayPaid = hasCurrentSubs ? paidSP : (lastCycle?.paid_sp ?? 0);
+    const displayRequired = hasCurrentSubs ? requiredSP : (lastCycle?.required_sp ?? requiredSP);
+    const paymentPct = displayRequired > 0 ? displayPaid / displayRequired : 0;
 
     const tierLabel = isMilitary ? (MILITARY_TIER_LABELS[tier] ?? '') : '';
 
     return {
-      id: node.id as string,
+      id: nodeId,
       name: node.name as string,
       type: node.type as string,
       tier,
@@ -114,8 +166,8 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
       tierLabel,
       instability: (node.instability as number) ?? 0,
       upkeepStatus,
-      paidSP,
-      requiredSP,
+      paidSP: displayPaid,
+      requiredSP: displayRequired,
       paymentPct
     };
   });
