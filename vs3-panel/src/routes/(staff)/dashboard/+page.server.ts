@@ -3,7 +3,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { calcUpkeep } from '$lib/upkeep';
 
 export const load: PageServerLoad = async ({ locals }) => {
-  const [factions, nodes, wars, jobRunList, deadlineConfigList, allSubmissions, spCatalogue] = await Promise.all([
+  const [factions, nodes, wars, jobRunList, deadlineConfigList, allSubmissions, cycleHistory, spCatalogue] = await Promise.all([
     locals.pb.collection('factions').getFullList({ sort: 'name' }),
     locals.pb.collection('nodes').getFullList({ expand: 'owner' }),
     locals.pb.collection('wars').getFullList({
@@ -18,8 +18,14 @@ export const load: PageServerLoad = async ({ locals }) => {
     locals.pb.collection('deadline_config').getList(1, 1, {})
       .catch(() => ({ items: [] as Array<Record<string, unknown>> })),
     locals.pb.collection('submissions').getFullList({
-      fields: 'id,node,sp_value,category'
-    }).catch(() => [] as Array<{ node: string; sp_value: number; category: string }>),
+      fields: 'id,node,sp_value,category,submission_type'
+    }).catch(() => [] as Array<{ node: string; sp_value: number; category: string; submission_type: string }>),
+    // Fetch last-cycle history for all nodes — needed to show correct paid status
+    // after confirmCycle clears in-flight submissions (same fallback logic as portal).
+    locals.pb.collection('submission_history').getFullList({
+      sort: '-deadline_ts',
+      fields: 'node,outcome,paid_sp,required_sp'
+    }).catch(() => [] as Array<{ node: string; outcome: string; paid_sp: number; required_sp: number }>),
     locals.pb.collection('sp_catalogue').getFullList({
       sort: 'category,name',
       fields: 'id,name,category,sp_value'
@@ -59,15 +65,30 @@ export const load: PageServerLoad = async ({ locals }) => {
   const schedulerOverdue = daysSinceLastRun > 8;
   const schedulerActive = ((deadlineConfigList as { items: Array<Record<string, unknown>> }).items[0]?.is_active as boolean | undefined) ?? false;
 
-  // Build per-node paid SP totals and per-category breakdowns for cap preview
+  // Build per-node paid SP totals (upkeep submissions only — repair/upgrade must not
+  // reduce the upkeep total) and per-category breakdowns for cap preview.
   const paidByNode = new Map<string, number>();
+  const hasSubsByNode = new Set<string>();
   const paidCategoryByNode = new Map<string, { rr: number; c: number }>();
-  for (const s of allSubmissions as Array<{ node: string; sp_value: number; category: string }>) {
-    paidByNode.set(s.node, (paidByNode.get(s.node) ?? 0) + s.sp_value);
+  for (const s of allSubmissions as Array<{ node: string; sp_value: number; category: string; submission_type: string }>) {
+    hasSubsByNode.add(s.node);
+    // Only upkeep submissions count toward the paid-SP total
+    if (s.submission_type === 'upkeep') {
+      paidByNode.set(s.node, (paidByNode.get(s.node) ?? 0) + s.sp_value);
+    }
     const cur = paidCategoryByNode.get(s.node) ?? { rr: 0, c: 0 };
     if (s.category === 'Raw Renewable') cur.rr += s.sp_value;
     if (s.category === 'Currency') cur.c += s.sp_value;
     paidCategoryByNode.set(s.node, cur);
+  }
+
+  // Build last-cycle-per-node map (list is sorted -deadline_ts so first entry wins).
+  // Used as fallback when a node has no in-flight submissions (cycle was just pushed).
+  const lastCycleByNode = new Map<string, { outcome: string; paid_sp: number; required_sp: number }>();
+  for (const h of cycleHistory as Array<{ node: string; outcome: string; paid_sp: number; required_sp: number }>) {
+    if (!lastCycleByNode.has(h.node)) {
+      lastCycleByNode.set(h.node, { outcome: h.outcome, paid_sp: h.paid_sp, required_sp: h.required_sp });
+    }
   }
 
   // Compute overdue nodes (paid < required, owner != Neutral and != null)
@@ -97,7 +118,27 @@ export const load: PageServerLoad = async ({ locals }) => {
         false
       );
       const nodeId = (n as { id: string }).id;
-      const paid = paidByNode.get(nodeId) ?? 0;
+      const hasCurrent = hasSubsByNode.has(nodeId);
+      const lastCycle = lastCycleByNode.get(nodeId) ?? null;
+
+      // Mirror portal fallback logic:
+      // - If there are in-flight submissions, use live paid SP (upkeep only).
+      // - If no in-flight submissions exist (cycle was just confirmed/cleared),
+      //   fall back to the most recent completed cycle record so a freshly-pushed
+      //   node doesn't incorrectly appear as overdue.
+      let paid: number;
+      let required: number;
+      if (hasCurrent) {
+        paid = paidByNode.get(nodeId) ?? 0;
+        required = eff;
+      } else if (lastCycle) {
+        paid = lastCycle.paid_sp;
+        required = lastCycle.required_sp;
+      } else {
+        paid = 0;
+        required = eff;
+      }
+
       const catTotals = paidCategoryByNode.get(nodeId) ?? { rr: 0, c: 0 };
       return {
         node: {
@@ -108,7 +149,7 @@ export const load: PageServerLoad = async ({ locals }) => {
           instability: (n as { instability: number }).instability ?? 0
         },
         paid,
-        required: eff,
+        required,
         rrPaid: catTotals.rr,
         cPaid: catTotals.c,
         faction: f ? { id: f.id, name: f.name, color: f.color ?? null } : null
