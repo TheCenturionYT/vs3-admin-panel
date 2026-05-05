@@ -48,8 +48,11 @@
   </div>
 </header>
 
-<main class="pt-[48px] min-h-screen bg-background">
-  <div class="max-w-[1100px] mx-auto p-6">
+<main class="pt-[48px] min-h-screen bg-background flex flex-col">
+  <div class="max-w-[1100px] mx-auto p-6 w-full flex-1">
     {@render children()}
   </div>
+  <footer class="max-w-[1100px] mx-auto w-full px-6 pb-4 pt-2">
+    <span class="text-[11px]" style="color: #5a4e3a;">VS3 Admin Panel v1.0.1</span>
+  </footer>
 </main>

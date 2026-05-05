@@ -19,7 +19,7 @@ and automated upkeep processing. Season is live — build correctly, ship when r
 ## Reference Files
 
 - `Admin Panel/VS3_Panel_1_2_1.html` — v1 reference implementation. **All calculation logic (calcUp, checkCaps, procDeadlines, INSTAB_EVENTS) must be ported from this file, not re-derived from handbook prose.**
-- `Handbook/VS3_Rules_Node_Handbook_v1.3.0.html` — governance document (25 sections). Key sections: VI (Nodes/Territory), VII (SP Catalogue), VIII (Instability/Upkeep), IX (Node Catalogue), XI (War Economy), XX (War Goals/Sieges).
+- `Handbook/VS3_Rules_Node_Handbook_v1.4.6.html` — governance document (25+ sections). Key sections: VI (Nodes/Territory), VII (SP Catalogue), VIII (Instability/Upkeep), IX (Node Catalogue), XI (War Economy), XX (War Goals/Sieges). **v1.4.6 is the authoritative version — extended overextension table, harbor mechanics (§VIII.I), updated upgrade costs.**
 - `.planning/` — PROJECT.md, REQUIREMENTS.md, ROADMAP.md, research/
 
 ## Core Business Logic
@@ -28,7 +28,7 @@ and automated upkeep processing. Season is live — build correctly, ship when r
 ```
 effectiveUpkeep = ceil(baseUpkeep × overextensionMul(nodeCount) × (1 + warMul(warCount)))
 ```
-- overextensionMul: 1→×1.0, 2→×1.1, 3→×1.2, 4→×1.35, 5+→×1.5
+- overextensionMul: 1→×1.0, 2→×1.1, 3→×1.2, 4→×1.35, 5→×1.5, 6→×1.65, 7→×1.80, 8+→×2.00
 - warMul (PvP factions only): 1war=+0.15, 2wars=+0.30, 3+wars=+0.50
 - PvE factions: warMul is always 0, regardless of any wars
 - Must be a single shared function; never store the computed value
@@ -57,12 +57,11 @@ Instability delta: ≥100% paid=+0, 50-99%=+1, 1-49%=+2, 0%=+2
 ### Instability Reduction
 Costs 40 SP (logged as a submission), reduces instability by 1.
 
-### Repair Costs (use §VIII values, not §IX Tier Baseline)
+### Repair Costs (§VIII authoritative)
 T1=50 SP, T2=100, T3=200, T4=300
 
-### Upgrade Costs (from v1 code)
-T1→T2=60 SP, T2→T3=140, T3→T4=280
-Note: Handbook §IX Tier Baseline lists T4 upgrade=500 SP — not in v1 code; resolve before Phase 3.
+### Upgrade Costs (§VIII.H authoritative — v1.4.6)
+T1→T2=100 SP, T2→T3=300, T3→T4=600
 
 ### Military Node Tiers
 T1=Watchtower, T2=Outpost, T3=Fort, T4=Bastion
@@ -107,10 +106,16 @@ Panel replaces manual tracking after verification, not the Discord flow.
 | 3 — Upkeep Engine & Automation | SP submissions, caps, deadline processor, instability, metrics |
 | 4 — Player Portal | Faction-scoped read-only portal with war/alliance board |
 
-## Known Discrepancies to Resolve Before Phase 3
+## Resolved Discrepancies (v1.4.6 audit)
 
-- Repair costs: Handbook §VIII (50/100/200/300) matches v1 code and is authoritative. §IX Tier Baseline (50/90/160/250) appears to be stale/incorrect — use §VIII values.
-- T4 upgrade cost: Handbook §IX says 500 SP; v1 code does not track this. Clarify with user before implementing upgrade tracking.
+- Repair costs: §VIII (50/100/200/300) is authoritative. §IX Tier Baseline values were stale — resolved.
+- Upgrade costs: §VIII.H (100/300/600) is authoritative per v1.4.6. Panel upgrade submission item_names must match these values.
+- Overextension multiplier: Extended to 8 tiers in v1.4.6 and updated in upkeep.ts accordingly.
+
+## Pending Implementation (from v1.4.6 audit)
+
+- **Harbor mechanics (§VIII.I):** New in v1.4.6 — harbor supply capacity, boat slot requirements. Not yet modeled in panel (Phase 3+ scope).
+- **SP catalogue sync:** Verify all 46 catalogue items from handbook §VII are seeded in PocketBase.
 
 ## Visual Identity
 

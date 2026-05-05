@@ -10,14 +10,18 @@
 
 /**
  * Overextension multiplier based on number of nodes owned by a faction.
- * Source: v1 oemul() — n<=1→1, 2→1.1, 3→1.2, 4→1.35, 5+→1.5
+ * Source: v1 oemul() extended per handbook v1.4.6:
+ *   n<=1→1.0, 2→1.1, 3→1.2, 4→1.35, 5→1.5, 6→1.65, 7→1.80, 8+→2.00
  */
 export function overextensionMul(nodeCount: number): number {
   if (nodeCount <= 1) return 1.0;
   if (nodeCount === 2) return 1.1;
   if (nodeCount === 3) return 1.2;
   if (nodeCount === 4) return 1.35;
-  return 1.5;
+  if (nodeCount === 5) return 1.5;
+  if (nodeCount === 6) return 1.65;
+  if (nodeCount === 7) return 1.8;
+  return 2.0;
 }
 
 /**
