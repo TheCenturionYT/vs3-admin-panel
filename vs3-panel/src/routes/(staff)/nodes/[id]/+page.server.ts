@@ -588,19 +588,28 @@ export const actions: Actions = {
       is_rp: formData.get('is_rp') || undefined
     });
     if (!parsed.success) return fail(400, { action: 'rollInstability', errors: parsed.error.flatten().fieldErrors });
-    // Guard: only allow roll when roll_due is true on the node
-    const nodeForRoll = await locals.pb.collection('nodes').getOne(params.id, { fields: 'id,roll_due' });
-    if (!(nodeForRoll as { roll_due?: boolean }).roll_due) {
-      return fail(400, { action: 'rollInstability', errors: { _global: ['No instability roll is currently due for this node.'] } });
+
+    const isManual = formData.get('is_manual') === 'true';
+
+    if (!isManual) {
+      // Guard: for automatic rolls (roll_due workflow), require roll_due = true on the node
+      const nodeForRoll = await locals.pb.collection('nodes').getOne(params.id, { fields: 'id,roll_due' });
+      if (!(nodeForRoll as { roll_due?: boolean }).roll_due) {
+        return fail(400, { action: 'rollInstability', errors: { _global: ['No instability roll is currently due for this node.'] } });
+      }
     }
+
     let rollId = '';
     try {
       const rollRecord = await locals.pb.collection('instability_rolls').create({
-        node: params.id, ...parsed.data, resolved: !parsed.data.triggered
+        node: params.id, ...parsed.data,
+        resolved: !parsed.data.triggered,
+        // Tag manual rolls for history display
+        is_manual: isManual
       });
       rollId = rollRecord.id as string;
-      // If not triggered, immediately clear roll_due (no event to resolve)
-      if (!parsed.data.triggered) {
+      // If not triggered, clear roll_due (no-op for manual rolls, correct for scheduled rolls)
+      if (!parsed.data.triggered && !isManual) {
         await locals.pb.collection('nodes').update(params.id, { roll_due: false });
       }
     } catch {

@@ -946,13 +946,14 @@
                 return async ({ result, update }) => {
                   if (result.type === 'success' && result.data && typeof result.data === 'object' && 'rollId' in result.data) {
                     if (lastRoll) lastRoll = { ...lastRoll, savedRollId: result.data.rollId as string };
+                    // Only refresh page data if not triggered (triggered needs roll state for event resolution)
                     if (!lastRoll?.triggered) await update();
-                  } else {
-                    await update();
                   }
+                  // Do NOT call update() on failure — it resets lastRoll and the roll disappears
                   rolling = false;
                 };
               }}>
+              <input type="hidden" name="is_manual" value="true" />
               <input type="hidden" name="roll" value={lastRoll.roll} />
               <input type="hidden" name="threshold" value={lastRoll.threshold} />
               <input type="hidden" name="triggered" value={String(lastRoll.triggered)} />
