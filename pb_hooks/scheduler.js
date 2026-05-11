@@ -40,7 +40,17 @@
 // === Inline upkeep calc — verbatim port of vs3-panel/src/lib/upkeep.ts ===
 // Keep jsvm_calcUp in sync with vs3-panel/src/lib/upkeep.ts (calcUpkeep).
 // Source: v1 Admin Panel/VS3_Panel_1_2_1.html oemul/wmul/calcUp functions.
-function jsvm_oemul(n) { return n <= 1 ? 1 : n === 2 ? 1.1 : n === 3 ? 1.2 : n === 4 ? 1.35 : 1.5; }
+// Extended to 8 tiers per handbook v1.4.6 — keep in sync with vs3-panel/src/lib/upkeep.ts overextensionMul()
+function jsvm_oemul(n) {
+    if (n <= 1) return 1.0;
+    if (n === 2) return 1.1;
+    if (n === 3) return 1.2;
+    if (n === 4) return 1.35;
+    if (n === 5) return 1.5;
+    if (n === 6) return 1.65;
+    if (n === 7) return 1.8;
+    return 2.0;
+}
 function jsvm_wmul(w, type) { if (type === 'PvE') return 0; return w === 0 ? 0 : w === 1 ? 0.15 : w === 2 ? 0.3 : 0.5; }
 function jsvm_calcUp(baseUpkeep, nodeCount, warCount, factionType, isNeutral) {
     if (isNeutral || !baseUpkeep) return baseUpkeep;
